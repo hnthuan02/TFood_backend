@@ -37,9 +37,6 @@ const IsBlockedSchema = new Schema(
 
 const UserSchema = new Schema(
   {
-    user_Id: {
-      type: Schema.Types.ObjectId,
-    },
     RESTAURANT_ID: {
       type: Schema.Types.ObjectId,
     },
@@ -56,7 +53,6 @@ const UserSchema = new Schema(
       required: true,
     },
     PASSWORD: {
-      // Note: Corrected from PASWORD to PASSWORD
       type: String,
       required: true,
     },
@@ -64,6 +60,25 @@ const UserSchema = new Schema(
       type: RoleSchema,
       required: true,
     },
+    OTP: [
+      {
+        TYPE: {
+          type: String,
+        },
+        CODE: {
+          type: String,
+        },
+        TIME: {
+          type: Date,
+        },
+        EXP_TIME: {
+          type: Date,
+        },
+        CHECK_USING: {
+          type: Boolean,
+        },
+      },
+    ],
     ADDRESS: {
       type: String,
       required: true,
@@ -74,15 +89,14 @@ const UserSchema = new Schema(
     },
     CUMULATIVE_POINTS: {
       type: Number,
-      required: true,
+      default: 0,
     },
     IS_BLOCKED: {
       type: IsBlockedSchema,
-      required: true,
     },
   },
   {
-    timestamps: { createdAt: "CREATE_AT", updatedAt: "UPDATE_AT" },
+    timestamps: true,
     versionKey: false,
   }
 );
