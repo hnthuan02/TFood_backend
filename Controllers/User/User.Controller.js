@@ -6,7 +6,6 @@ class USER_CONTROLLER {
   registerUser = async (req, res) => {
     const payload = req.body;
     const otpType = "create_account";
-    // Validate dữ liệu đầu vào
     const { error, value } = USER_VALIDATES.registerValidate.validate(payload);
 
     if (error) {
@@ -54,11 +53,11 @@ class USER_CONTROLLER {
     }
   };
 
-  verifyOTPAndActivateUser = async (req, res) => {
+  verifyUserByOTP = async (req, res) => {
     const { email, otp } = req.body;
 
     try {
-      const user = await USER_SERVICE.verifyOTPAndActivateUser(email, otp);
+      const user = await USER_SERVICE.verifyUserByOTP(email, otp);
 
       if (!user) {
         return res
@@ -131,11 +130,11 @@ class USER_CONTROLLER {
   resetPassword = async (req, res) => {
     const { email, otp, newPassword } = req.body;
     try {
-      const isValid = await MailService.verifyOTP(email, otp, "reset_password");
+      const isValid = await MailQueue.verifyOTP(email, otp, "reset_password");
       if (!isValid) {
         return res.status(500).json({ error: "Invalid or expired OTP." });
       }
-      await USER_SERVICE.resetPassword(email, newPassword);
+      await USER_SERVICE.resetPassword(email, newPassword, otp);
       return res
         .status(200)
         .json({ message: "Password reset was successfully." });
@@ -164,6 +163,13 @@ class USER_CONTROLLER {
         });
       }
 
+      if (!user.IS_ACTIVATED) {
+        return res.status(403).json({
+          success: false,
+          message: "Tài khoản chưa được kích hoạt.",
+        });
+      }
+
       const isPasswordValid = await USER_SERVICE.checkPassword(
         payload.PASSWORD,
         user.PASSWORD
@@ -175,6 +181,7 @@ class USER_CONTROLLER {
         });
       }
 
+      //   const payload = { id: user._id, EMAIL: user.EMAIL, PHONE_NUMBER: user.PHONE_NUMBER };
       const data_sign = {
         userId: user._id,
       };
@@ -182,8 +189,8 @@ class USER_CONTROLLER {
 
       return res.status(200).json({
         success: true,
-        message: user,
         metadata: accessToken,
+        message: user,
       });
     } catch (err) {
       console.error("Error logging in:", err);
@@ -192,6 +199,60 @@ class USER_CONTROLLER {
         message: "Đăng nhập thất bại.",
         error: err.message,
       });
+    }
+  };
+
+  getUsers = async (req, res) => {
+    try {
+      const { tabStatus, page = 1, limit = 10, search = "" } = req.query;
+
+      const result = await USER_SERVICE.getUsers(
+        tabStatus,
+        parseInt(page),
+        parseInt(limit),
+        search
+      );
+
+      res.status(200).json({
+        success: true,
+        data: result.users,
+        totalPages: result.totalPages,
+        totalCount: result.totalCount,
+      });
+    } catch (err) {
+      res.status(500).json({
+        success: false,
+        message: "Lỗi khi truy vấn người dùng.",
+        error: err.message,
+      });
+    }
+  };
+
+  blockUser = async (req, res) => {
+    const payload = req.body;
+    const { userId } = payload;
+    const blocked_byuserid = req.user_id;
+
+    // Validate userId
+    const { error } = USER_VALIDATES.validateUserId(userId);
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    try {
+      const updatedUser = await USER_SERVICE.blockUser(
+        userId,
+        payload.IS_BLOCKED,
+        blocked_byuserid
+      );
+
+      if (!updatedUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json(updatedUser);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
     }
   };
 }

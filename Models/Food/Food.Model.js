@@ -2,10 +2,6 @@ const mongoose = require("mongoose");
 
 const foodSchema = new mongoose.Schema(
   {
-    food_Id: {
-      type: mongoose.Schema.Types.ObjectId,
-      required: true,
-    },
     RESTAURANT_ID: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
@@ -29,20 +25,12 @@ const foodSchema = new mongoose.Schema(
       type: Boolean,
       required: true,
     },
-    CREATE_AT: {
-      type: Date,
-      required: true,
-    },
-    UPDATE_AT: {
-      type: Date,
-      required: true,
-    },
     DISCOUNT: {
       type: Number,
     },
   },
   {
-    timestamps: { createdAt: "CREATE_AT", updatedAt: "UPDATE_AT" },
+    timestamps: true,
     versionKey: false,
   }
 );

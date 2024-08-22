@@ -12,14 +12,14 @@ const addressSchema = new mongoose.Schema(
     WARD: {
       NAME: { type: String, required: true },
     },
-    DESCRIPTION: { type: String },
+    DETAIL: { type: String },
   },
   { _id: false }
 );
 
 const RestaurantSchema = new mongoose.Schema(
   {
-    NAME: { type: String, required: true },
+    NAME: { type: String },
     ADDRESS: { type: addressSchema, required: true },
     STATE: {
       type: String,
@@ -27,13 +27,20 @@ const RestaurantSchema = new mongoose.Schema(
       required: true,
     },
     PHONE: { type: String, required: true },
-    EMAIL: { type: String, required: true },
+    EMAIL: { type: String },
   },
   {
     timestamps: true,
     strict: "throw",
   }
 );
+
+RestaurantSchema.pre("save", function (next) {
+  const { PROVINCE, DISTRICT, WARD } = this.ADDRESS;
+  this.NAME = `TFOOD ${PROVINCE.NAME} ${DISTRICT.NAME} ${WARD.NAME}`;
+
+  next();
+});
 
 const Restaurant = mongoose.model("Restaurant", RestaurantSchema);
 

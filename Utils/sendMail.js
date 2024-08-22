@@ -154,6 +154,12 @@ class MailQueue {
                 <p style="font-size: 24px; font-weight: bold;">${otp}</p>
                 <p><a href="#" class="btn btn-primary">Reset Password</a></p>
             `;
+    } else if (otpType === "edit_account") {
+      message = `
+                <h2>To edit your account, use this code:</h2>
+                <p style="font-size: 24px; font-weight: bold;">${otp}</p>
+                <p><a href="#" class="btn btn-primary">Upgrade Account</a></p>
+            `;
     } else {
       message = `
                 <h2>Here is your OTP code:</h2>
