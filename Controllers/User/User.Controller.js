@@ -1,13 +1,15 @@
 const USER_MODEL = require("../../Models/User/User.Model");
 const USER_SERVICE = require("../../Services/User/User.Service");
 const USER_VALIDATES = require("../../Models/User/validate/validateUser");
+const USER_EDIT_VALIDATES = require("../../Models/User/validate/editUser");
+const COOKIE_OPTIONS = require("../../Config/cookieOptions");
 const MailQueue = require("../../Utils/sendMail");
+const User = require("../../Models/User/User.Model");
 class USER_CONTROLLER {
   registerUser = async (req, res) => {
     const payload = req.body;
     const otpType = "create_account";
     const { error, value } = USER_VALIDATES.registerValidate.validate(payload);
-
     if (error) {
       const errors = error.details.reduce((acc, current) => {
         acc[current.context.key] = current.message;
@@ -54,7 +56,7 @@ class USER_CONTROLLER {
   };
 
   verifyUserByOTP = async (req, res) => {
-    const { email, otp } = req.body;
+    const { email, otp, otpType } = req.body;
 
     try {
       const user = await USER_SERVICE.verifyUserByOTP(email, otp);
@@ -67,14 +69,17 @@ class USER_CONTROLLER {
 
       const otpDetail = user.OTP.find((item) => item.CODE === otp);
       const currentTime = Date.now();
-
+      console.log(user.otpType);
       if (otpDetail.EXP_TIME < currentTime) {
         return res.status(400).json({ errors: { otp: "Mã OTP đã hết hạn" } });
       }
-
-      res
-        .status(200)
-        .json({ message: "Kích hoạt người dùng thành công!", user });
+      if (user.otpType === "create_account") {
+        res
+          .status(200)
+          .json({ message: "Kích hoạt người dùng thành công!", user });
+      } else {
+        res.status(200).json({ message: "Cập nhật Email thành công!", user });
+      }
     } catch (error) {
       console.error("Error verifying OTP and activating user:", error);
       res.status(400).json({ errors: { otp: error.message } });
@@ -181,15 +186,15 @@ class USER_CONTROLLER {
         });
       }
 
-      //   const payload = { id: user._id, EMAIL: user.EMAIL, PHONE_NUMBER: user.PHONE_NUMBER };
       const data_sign = {
         userId: user._id,
       };
-      const accessToken = await USER_SERVICE.login(data_sign);
+      const { accessToken, refreshToken } = await USER_SERVICE.login(data_sign);
+      res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS);
 
       return res.status(200).json({
         success: true,
-        metadata: accessToken,
+        accessToken: accessToken,
         message: user,
       });
     } catch (err) {
@@ -199,6 +204,41 @@ class USER_CONTROLLER {
         message: "Đăng nhập thất bại.",
         error: err.message,
       });
+    }
+  };
+
+  logout = async (req, res) => {
+    res.clearCookie("refreshToken", COOKIE_OPTIONS);
+    res.status(200).json({ message: "Logged out successfully" });
+  };
+
+  resetRefreshToken = async (req, res) => {
+    try {
+      const { refreshToken } = req.cookies;
+
+      if (!refreshToken) {
+        return res.status(401).json({ message: "Refresh token is required" });
+      }
+
+      const newRefreshToken = await USER_SERVICE.resetRefreshToken(
+        refreshToken
+      );
+
+      const decoded = jwt.verify(
+        refreshToken,
+        process.env.REFRESH_TOKEN_SECRET
+      );
+      const accessToken = jwt.sign(
+        { userId: decoded.userId },
+        process.env.ACCESS_TOKEN_SECRET,
+        { expiresIn: "5h" }
+      );
+
+      res.cookie("refreshToken", newRefreshToken, COOKIE_OPTIONS);
+
+      return res.status(200).json({ accessToken });
+    } catch (error) {
+      return res.status(401).json({ message: error.message });
     }
   };
 
@@ -233,7 +273,6 @@ class USER_CONTROLLER {
     const { userId } = payload;
     const blocked_byuserid = req.user_id;
 
-    // Validate userId
     const { error } = USER_VALIDATES.validateUserId(userId);
     if (error) {
       return res.status(400).json({ error: error.details[0].message });
@@ -251,6 +290,74 @@ class USER_CONTROLLER {
       }
 
       res.json(updatedUser);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  };
+
+  editUser = async (req, res) => {
+    const userId = req.user_id;
+    const data = req.body;
+    const { newEMAIL, Password } = data;
+    const otpType = "edit_account";
+    try {
+      const user = await USER_SERVICE.getUserInfo(userId);
+      const checkUserExists = await USER_SERVICE.checkUserExists(
+        data.EMAIL,
+        data.PHONE_NUMBER
+      );
+      if (checkUserExists) {
+        return res
+          .status(400)
+          .json({ message: "Email hoặc số điện thoại đã tồn tại." });
+      }
+      // Kiểm tra mật khẩu hiện tại
+      const isPasswordValid = await USER_SERVICE.checkPassword(
+        data.PASSWORD,
+        user.PASSWORD
+      );
+      if (!isPasswordValid) {
+        return res.status(401).json({ message: "Mật khẩu không chính xác." });
+      }
+      if (data.EMAIL) {
+        const updateData = await USER_SERVICE.editUser(userId, data);
+        await USER_MODEL.findByIdAndUpdate(userId, updateData, { new: true });
+        const sendMail = await MailQueue.sendVerifyEmail(data.EMAIL, otpType);
+        if (!sendMail) {
+          throw new Error("Gửi email xác minh thất bại");
+        }
+
+        return res
+          .status(200)
+          .json({ message: "Vui lòng kiểm tra email để xác thực." });
+      } else {
+        const updateData = await USER_SERVICE.editUser(userId, data);
+
+        await USER_MODEL.findByIdAndUpdate(userId, updateData, { new: true });
+
+        return res.status(200).json({
+          message: "Thông tin người dùng đã được cập nhật thành công.",
+        });
+      }
+    } catch (error) {
+      console.error("Error updating user:", error);
+      return res
+        .status(500)
+        .json({ message: "Đã xảy ra lỗi khi cập nhật thông tin người dùng." });
+    }
+  };
+
+  getUserById = async (req, res) => {
+    try {
+      const userId = req.params.id;
+
+      const user = await USER_SERVICE.getUserInfo(userId);
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.status(200).json(user);
     } catch (error) {
       res.status(500).json({ error: error.message });
     }

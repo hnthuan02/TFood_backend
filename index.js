@@ -5,6 +5,7 @@ const port = 3001;
 
 const dbConnect = require("./Config/dbconnect");
 const route = require("./Router");
+require("./cron/updateRestaurantState");
 
 dbConnect();
 

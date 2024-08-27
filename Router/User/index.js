@@ -13,6 +13,8 @@ router.post("/forgotPassword", USER_CONTROLLER.forgotPassword);
 router.post("/resendOTP", USER_CONTROLLER.ResendOTP);
 router.post("/resetPassword", USER_CONTROLLER.resetPassword);
 router.post("/loginUser", USER_CONTROLLER.login);
+router.put("/editUser", verifyToken, USER_CONTROLLER.editUser);
+router.post("/logout", USER_CONTROLLER.logout);
 router.get(
   "/getAllUsers",
   verifyToken,

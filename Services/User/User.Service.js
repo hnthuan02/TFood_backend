@@ -4,7 +4,6 @@ const USER_MODEL = require("../../Models/User/User.Model");
 
 class USER_SERVICE {
   async checkUserExists(email, phone) {
-    // Tìm kiếm người dùng dựa trên email hoặc số điện thoại
     const searchConditions = [];
 
     if (email) {
@@ -63,11 +62,29 @@ class USER_SERVICE {
     }
   }
 
+  // Hàm tạo refresh token
+  generateRefreshToken = async (userId) => {
+    const secret = process.env.REFRESH_TOKEN_SECRET;
+    const expiresIn = "30d";
+    const refreshToken = jwt.sign({ userId }, secret, { expiresIn });
+    return refreshToken;
+  };
+  // Hàm cấp phát lại refresh token
+  resetRefreshToken = async (oldRefreshToken) => {
+    const secret = process.env.REFRESH_TOKEN_SECRET;
+    const decoded = jwt.verify(oldRefreshToken, secret);
+
+    // Tạo một refresh token mới
+    const newRefreshToken = generateRefreshToken(decoded.userId);
+    return newRefreshToken;
+  };
+
   login = async (payload) => {
     const secret = process.env.ACCESS_TOKEN_SECRET;
     const expiresIn = "5h";
     const accessToken = jwt.sign(payload, secret, { expiresIn });
-    return accessToken;
+    const refreshToken = await this.generateRefreshToken(payload.userId);
+    return { accessToken, refreshToken };
   };
 
   async getUserInfo(user_id) {
@@ -143,21 +160,17 @@ class USER_SERVICE {
 
     switch (tabStatus) {
       case "1":
-        // Người dùng chưa kích hoạt hoặc không bị chặn
         query = {
           $or: [{ IS_ACTIVATED: false }, { "IS_BLOCKED.CHECK": { $ne: true } }],
         };
         break;
       case "2":
-        // Người dùng đã kích hoạt và không bị chặn
         query = { IS_ACTIVATED: true, "IS_BLOCKED.CHECK": { $ne: true } };
         break;
       case "3":
-        // Người dùng bị chặn
         query = { "IS_BLOCKED.CHECK": true };
         break;
       case "4":
-        // Tất cả người dùng
         query = {};
         break;
       default:
@@ -180,7 +193,7 @@ class USER_SERVICE {
       const users = await USER_MODEL.find(query)
         .skip(offset)
         .limit(limit)
-        .lean(); // Sử dụng lean() để nhận về plain JavaScript objects
+        .lean();
 
       if (users.length === 0) {
         return {
@@ -219,6 +232,24 @@ class USER_SERVICE {
     );
 
     return foundUser;
+  }
+
+  async editUser(userId, data) {
+    const user = await USER_MODEL.findById(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    const updateData = {};
+    if (data.EMAIL) {
+      updateData.EMAIL = data.EMAIL;
+      updateData.IS_ACTIVATED = false;
+    } else {
+      if (data.FULLNAME) updateData.FULLNAME = data.FULLNAME;
+      if (data.PHONE_NUMBER) updateData.PHONE_NUMBER = data.PHONE_NUMBER;
+      if (data.ADDRESS) updateData.ADDRESS = data.ADDRESS;
+      if (data.GENDER) updateData.GENDER = data.GENDER;
+    }
+    return updateData;
   }
 }
 
