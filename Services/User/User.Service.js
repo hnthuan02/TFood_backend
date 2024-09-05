@@ -40,7 +40,6 @@ class USER_SERVICE {
         STAFF: false,
       },
       ADDRESS: body.ADDRESS,
-      GENDER: body.GENDER,
       IS_BLOCKED: null,
       IS_ACTIVATED: false,
     });
@@ -247,7 +246,6 @@ class USER_SERVICE {
       if (data.FULLNAME) updateData.FULLNAME = data.FULLNAME;
       if (data.PHONE_NUMBER) updateData.PHONE_NUMBER = data.PHONE_NUMBER;
       if (data.ADDRESS) updateData.ADDRESS = data.ADDRESS;
-      if (data.GENDER) updateData.GENDER = data.GENDER;
     }
     return updateData;
   }

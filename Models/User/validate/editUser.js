@@ -57,10 +57,6 @@ class USER_VALIDATES {
         "any.required": "Mật khẩu là bắt buộc.",
       }),
 
-    GENDER: Joi.string().valid("Nam", "Nữ", "Khác").optional().messages({
-      "any.only": "Giới tính phải là 'Nam', 'Nữ', hoặc 'Khác'.",
-    }),
-
     ADDRESS: Joi.string().trim().messages({
       "string.base": "Địa chỉ phải là một chuỗi ký tự.",
       "string.empty": "Địa chỉ không được để trống.",

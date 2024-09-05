@@ -56,7 +56,7 @@ class USER_CONTROLLER {
   };
 
   verifyUserByOTP = async (req, res) => {
-    const { email, otp, otpType } = req.body;
+    const { email, otp } = req.body;
 
     try {
       const user = await USER_SERVICE.verifyUserByOTP(email, otp);
@@ -69,17 +69,16 @@ class USER_CONTROLLER {
 
       const otpDetail = user.OTP.find((item) => item.CODE === otp);
       const currentTime = Date.now();
-      console.log(user.otpType);
+
       if (otpDetail.EXP_TIME < currentTime) {
         return res.status(400).json({ errors: { otp: "Mã OTP đã hết hạn" } });
       }
-      if (user.otpType === "create_account") {
-        res
-          .status(200)
-          .json({ message: "Kích hoạt người dùng thành công!", user });
-      } else {
-        res.status(200).json({ message: "Cập nhật Email thành công!", user });
-      }
+
+      return res.status(201).json({
+        success: true,
+        message: "Kích hoạt người dùng thành công!",
+        user,
+      });
     } catch (error) {
       console.error("Error verifying OTP and activating user:", error);
       res.status(400).json({ errors: { otp: error.message } });
@@ -99,6 +98,7 @@ class USER_CONTROLLER {
       }
 
       return res.status(201).json({
+        success: true,
         message: "Vui lòng kiểm tra email để xác thực.",
       });
     } catch (error) {
@@ -142,7 +142,7 @@ class USER_CONTROLLER {
       await USER_SERVICE.resetPassword(email, newPassword, otp);
       return res
         .status(200)
-        .json({ message: "Password reset was successfully." });
+        .json({ success: true, message: "Đổi mật khẩu thành công!" });
     } catch (err) {
       res.status(500).json({ error: "Error resetting password" });
     }

@@ -83,10 +83,7 @@ const UserSchema = new Schema(
       type: String,
       required: true,
     },
-    GENDER: {
-      type: String,
-      required: true,
-    },
+
     CUMULATIVE_POINTS: {
       type: Number,
       default: 0,
