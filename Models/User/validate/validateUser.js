@@ -57,7 +57,7 @@ class USER_VALIDATES {
         "any.required": "Mật khẩu là bắt buộc.",
       }),
 
-    ADDRESS: Joi.string().trim().required().messages({
+    ADDRESS: Joi.string().trim().messages({
       "string.base": "Địa chỉ phải là một chuỗi ký tự.",
       "string.empty": "Địa chỉ không được để trống.",
       "any.required": "Địa chỉ là bắt buộc.",

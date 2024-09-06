@@ -1,11 +1,12 @@
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
 const USER_SERVICE = require("../Services/User/User.Service");
+const USER_MODEL = require("../Models/User/User.Model");
 
 dotenv.config();
 
 const verifyToken = async (req, res, next) => {
-  const authHeader = req.header("authorization");
+  const authHeader = req.header("Authorization");
   const token = authHeader && authHeader.split(" ")[1];
   if (!token) {
     return res
@@ -16,8 +17,11 @@ const verifyToken = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
     req.user_id = decoded.userId;
-    const user_info = await USER_SERVICE.getUserInfo(decoded.userId);
-    req.user = user_info;
+    req.user = await USER_MODEL.findById(decoded.userId).select("-password");
+
+    if (!req.user) {
+      return res.sendStatus(404);
+    }
     next();
   } catch (err) {
     return res.status(401).json({ message: "Invalid token." });

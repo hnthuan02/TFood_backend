@@ -3,7 +3,7 @@ const RESTAURANT_MODEL = require("../../Models/Restaurant/Restaurant.Model");
 class RESTAURANT_SERVICE {
   async createRestaurant(data) {
     const newRestaurant = new RESTAURANT_MODEL({
-      NAME: "TFOOD" + data.ADDRESS.Pr,
+      NAME: "TFOOD Delivery" + data.ADDRESS.Pr,
       ADDRESS: data.ADDRESS,
       STATE: "Close",
       PHONE: data.PHONE,

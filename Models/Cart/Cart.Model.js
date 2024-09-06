@@ -3,10 +3,6 @@ const Schema = mongoose.Schema;
 
 const cartSchema = new Schema(
   {
-    USER_ID: {
-      type: Schema.Types.ObjectId,
-      required: true,
-    },
     LIST_FOOD: [
       {
         FOOD_ID: {
@@ -25,7 +21,7 @@ const cartSchema = new Schema(
     },
   },
   {
-    timestamps: false, // Optional: to add createdAt and updatedAt fields automatically
+    timestamps: true, // Optional: to add createdAt and updatedAt fields automatically
     versionKey: false, // Optional: to remove the __v field
   }
 );

@@ -27,5 +27,8 @@ router.post(
   authorizeRoles("ADMIN", "BRANCH_MANAGER"),
   USER_CONTROLLER.blockUser
 );
+router.get("/profile", verifyToken, (req, res) => {
+  return res.json(req.user); // Trả về thông tin người dùng đã được xác thực
+});
 
 module.exports = router;

@@ -3,10 +3,6 @@ const Schema = mongoose.Schema;
 
 const metadataFoodSchema = new Schema(
   {
-    FOOD_ID: {
-      type: Schema.Types.ObjectId,
-      required: true,
-    },
     TOTAL_ORDERS: {
       type: Number,
       required: true,

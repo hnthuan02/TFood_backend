@@ -81,7 +81,7 @@ const UserSchema = new Schema(
     ],
     ADDRESS: {
       type: String,
-      required: true,
+      required: false,
     },
 
     CUMULATIVE_POINTS: {

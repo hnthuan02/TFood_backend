@@ -2,8 +2,8 @@ const mongoose = require("mongoose");
 
 const foodSchema = new mongoose.Schema(
   {
-    RESTAURANT_ID: {
-      type: mongoose.Schema.Types.ObjectId,
+    NAME: {
+      type: String,
       required: true,
     },
     TYPE: {
@@ -25,8 +25,17 @@ const foodSchema = new mongoose.Schema(
       type: Boolean,
       required: true,
     },
-    DISCOUNT: {
-      type: Number,
+    NEWEST: {
+      type: Boolean,
+      required: false,
+    },
+    BEST: {
+      type: Boolean,
+      required: false,
+    },
+    IS_DELETED: {
+      type: Boolean,
+      required: false,
     },
   },
   {
