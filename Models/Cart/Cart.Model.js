@@ -3,6 +3,10 @@ const Schema = mongoose.Schema;
 
 const cartSchema = new Schema(
   {
+    USER_ID: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
     LIST_FOOD: [
       {
         FOOD_ID: {
