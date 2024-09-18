@@ -8,11 +8,11 @@ const foodSchema = new mongoose.Schema(
     },
     TYPE: {
       type: String,
-      enum: ["Fried chicken", "Pasta", "Burger", "Dessert", "Drinks"],
+      enum: ["Steak", "Pasta", "Dessert", "Drink"],
       required: true,
     },
     PRICE: {
-      type: String,
+      type: Number,
       required: true,
     },
     DESCRIPTION: {

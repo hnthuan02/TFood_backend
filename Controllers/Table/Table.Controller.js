@@ -49,9 +49,34 @@ class TableController {
     }
   }
 
+  async getAllTableWithoutDate(req, res) {
+    try {
+      // Lấy tất cả các bàn mà không có bộ lọc ngày
+      const tables = await TableService.getAllTables({ IS_DELETED: false });
+
+      // Nhóm các bảng theo TYPE và CAPACITY và tính toán số lượng bàn
+      const groupedTables = tables.reduce((acc, table) => {
+        const key = `${table.TYPE}_${table.CAPACITY}`;
+        if (!acc[key]) {
+          acc[key] = { ...table, COUNT: 1 }; // Khởi tạo với COUNT = 1
+        } else {
+          acc[key].COUNT += 1; // Tăng COUNT nếu cùng TYPE và CAPACITY
+        }
+        return acc;
+      }, {});
+
+      // Trả về kết quả đã nhóm và có số lượng bàn
+      res
+        .status(200)
+        .json({ success: true, data: Object.values(groupedTables) });
+    } catch (error) {
+      res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
   async getAllTables(req, res) {
     try {
-      const { date } = req.query; // Nhận ngày từ query parameter
+      const { date, people } = req.query; // Lấy ngày và số người từ query parameter
 
       if (!date) {
         return res
@@ -59,8 +84,19 @@ class TableController {
           .json({ success: false, message: "Date is required" });
       }
 
+      if (!people || isNaN(people)) {
+        return res.status(400).json({
+          success: false,
+          message: "Number of people is required and must be a number",
+        });
+      }
+
       const selectedDate = new Date(date);
-      const query = { IS_DELETED: false }; // Chỉ lấy những bảng chưa bị xóa
+      const minPeople = parseInt(people, 10);
+      const query = {
+        IS_DELETED: false,
+        CAPACITY: { $gte: minPeople }, // Đảm bảo CAPACITY lớn hơn hoặc bằng số người
+      };
       const tables = await TableService.getAllTables(query);
 
       // Lọc các bàn có AVAILABLE là true trong ngày đã chọn

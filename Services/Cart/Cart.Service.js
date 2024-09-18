@@ -1,6 +1,7 @@
 const CART_MODEL = require("../../Models/Cart/Cart.Model");
 const TABLE_MODEL = require("../../Models/Table/Table.Model");
 const FOOD_MODEL = require("../../Models/Food/Food.Model");
+const mongoose = require("mongoose");
 
 class CART_SERVICE {
   async createCart(userId) {
@@ -254,6 +255,92 @@ class CART_SERVICE {
 
     await cart.save();
     return cart;
+  }
+
+  async getCartByUserId(userId) {
+    const cart = await CART_MODEL.aggregate([
+      {
+        $match: { USER_ID: new mongoose.Types.ObjectId(userId) },
+      },
+      {
+        $unwind: { path: "$LIST_TABLES", preserveNullAndEmptyArrays: true },
+      },
+      {
+        $lookup: {
+          from: "tables",
+          localField: "LIST_TABLES.TABLE_ID",
+          foreignField: "_id",
+          as: "tableDetails",
+        },
+      },
+      {
+        $unwind: { path: "$tableDetails", preserveNullAndEmptyArrays: true },
+      },
+      {
+        $lookup: {
+          from: "foods",
+          localField: "LIST_TABLES.LIST_FOOD.FOOD_ID",
+          foreignField: "_id",
+          as: "foodDetails",
+        },
+      },
+      {
+        $unwind: { path: "$foodDetails", preserveNullAndEmptyArrays: true },
+      },
+      {
+        $addFields: {
+          "LIST_TABLES.TOTAL_PRICE_FOOD": {
+            $sum: {
+              $map: {
+                input: "$LIST_TABLES.LIST_FOOD",
+                as: "food",
+                in: { $multiply: ["$$food.QUANTITY", "$foodDetails.PRICE"] },
+              },
+            },
+          },
+          "LIST_TABLES.TABLE_PRICE": "$tableDetails.PRICE",
+          "LIST_TABLES.TOTAL_SERVICE_PRICE": {
+            $sum: {
+              $map: {
+                input: "$LIST_TABLES.SERVICES",
+                as: "service",
+                in: { $ifNull: ["$$service.servicePrice", 0] },
+              },
+            },
+          },
+        },
+      },
+      {
+        $group: {
+          _id: "$_id",
+          USER_ID: { $first: "$USER_ID" },
+          LIST_TABLES: { $push: "$LIST_TABLES" },
+          TOTAL_PRICES: {
+            $sum: {
+              $add: [
+                { $ifNull: ["$LIST_TABLES.TOTAL_PRICE_FOOD", 0] },
+                { $ifNull: ["$LIST_TABLES.TABLE_PRICE", 0] },
+                { $ifNull: ["$LIST_TABLES.TOTAL_SERVICE_PRICE", 0] }, // Cộng giá của dịch vụ vào tổng giá
+              ],
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          USER_ID: 1,
+          LIST_TABLES: 1,
+          TOTAL_PRICES: 1,
+        },
+      },
+    ]);
+
+    if (!cart || cart.length === 0) {
+      throw new Error("Cart not found");
+    }
+
+    return cart[0];
   }
 }
 

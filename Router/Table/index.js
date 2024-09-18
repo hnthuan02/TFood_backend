@@ -8,5 +8,6 @@ router.get("/allTable", TABLE_CONTROLLER.getAllTables);
 router.get("/groupedTables", TABLE_CONTROLLER.getGroupedTables);
 router.get("/oneTable", TABLE_CONTROLLER.getTable);
 router.put("/updateTable/:tableId", TABLE_CONTROLLER.updateTable);
+router.get("/allTableWithoutDate", TABLE_CONTROLLER.getAllTableWithoutDate);
 
 module.exports = router;

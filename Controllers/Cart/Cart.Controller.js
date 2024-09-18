@@ -174,6 +174,26 @@ class CART_CONTROLLER {
       });
     }
   }
+
+  async getCartByUserId(req, res) {
+    try {
+      const userId = req.user_id; // Giả sử user_id được lấy từ token đã xác thực
+
+      const cart = await CART_SERVICE.getCartByUserId(userId);
+
+      return res.status(200).json({
+        success: true,
+        data: cart,
+      });
+    } catch (error) {
+      console.error("Error fetching cart:", error.message);
+      return res.status(500).json({
+        success: false,
+        message: "Error fetching cart.",
+        error: error.message,
+      });
+    }
+  }
 }
 
 module.exports = new CART_CONTROLLER();

@@ -7,5 +7,6 @@ const {
 } = require("../../Middleware/verifyToken");
 
 router.post("/createCart", verifyToken, CART_CONTROLLER.addTableToCart);
+router.get("/getCartById", verifyToken, CART_CONTROLLER.getCartByUserId);
 
 module.exports = router;

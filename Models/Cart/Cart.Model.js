@@ -35,18 +35,10 @@ const CartSchema = new Schema(
               type: Number,
               required: true,
             },
-            TOTAL_PRICE_FOOD: {
-              type: Number,
-              default: 0,
-            },
           },
         ],
       },
     ],
-    TOTAL_PRICES: {
-      type: Number,
-      required: false,
-    },
   },
   {
     timestamps: true,
