@@ -1,4 +1,5 @@
 const FOOD_MODEL = require("../../Models/Food/Food.Model");
+const CLOUDINARY = require("../../Config/cloudinaryConfig");
 
 class FOOD_SERVICE {
   async checkFoodExists(name) {
@@ -19,7 +20,25 @@ class FOOD_SERVICE {
   // Tạo món ăn mới
   async createFood(body) {
     try {
+      let uploadedImages = []; // Đảm bảo biến được định nghĩa trước
+      if (body.IMAGES && body.IMAGES.length > 0) {
+        uploadedImages = await Promise.all(
+          body.IMAGES.map(async (image) => {
+            // Kiểm tra nếu là URL hoặc file path cục bộ
+            if (image.startsWith("http")) {
+              // Upload từ URL
+              const uploadResult = await CLOUDINARY.uploader.upload(image);
+              return uploadResult.secure_url;
+            } else {
+              // Upload từ file cục bộ
+              const uploadResult = await CLOUDINARY.uploader.upload(image.path);
+              return uploadResult.secure_url;
+            }
+          })
+        );
+      }
       const newFood = new FOOD_MODEL(body);
+
       const result = await newFood.save();
       return result.toObject();
     } catch (error) {

@@ -9,5 +9,7 @@ router.get("/groupedTables", TABLE_CONTROLLER.getGroupedTables);
 router.get("/oneTable", TABLE_CONTROLLER.getTable);
 router.put("/updateTable/:tableId", TABLE_CONTROLLER.updateTable);
 router.get("/allTableWithoutDate", TABLE_CONTROLLER.getAllTableWithoutDate);
+router.get("/available-dates", TABLE_CONTROLLER.getAvailableDates);
+router.get("/available-by-date", TABLE_CONTROLLER.getAvailableTablesByDate);
 
 module.exports = router;

@@ -10,6 +10,10 @@ class FOOD_CONTROLLER {
       if (checkFoodExists) {
         return res.status(400).json({ message: "Tên món ăn đã tồn tại." });
       }
+      if (req.files && req.files.length > 0) {
+        const images = req.files.map((file) => ({ path: file.path })); // Lấy đường dẫn tạm thời từ Multer
+        roomData.IMAGES = images;
+      }
       const newFood = await FOOD_SERVICE.createFood(req.body);
       res.status(201).json(newFood);
     } catch (error) {

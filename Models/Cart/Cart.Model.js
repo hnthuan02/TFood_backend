@@ -22,21 +22,24 @@ const CartSchema = new Schema(
           {
             serviceName: String,
             servicePrice: Number,
+            _id: false,
           },
         ],
         LIST_FOOD: [
           {
             FOOD_ID: {
               type: Schema.Types.ObjectId,
-              required: true,
+              required: false,
               ref: "Food",
             },
             QUANTITY: {
               type: Number,
-              required: true,
+              required: false,
             },
+            _id: false,
           },
         ],
+        _id: false,
       },
     ],
   },

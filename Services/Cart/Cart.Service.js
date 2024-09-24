@@ -257,6 +257,74 @@ class CART_SERVICE {
     return cart;
   }
 
+  calculateTotalPrices(listTables) {
+    return listTables.reduce((total, table) => {
+      // Tính tổng giá của tất cả các món ăn trong bàn
+      const totalPriceFood = table.LIST_FOOD.reduce(
+        (sum, food) => sum + food.QUANTITY * (food.foodPrice?.PRICE || 0),
+        0
+      );
+
+      // Cập nhật lại giá trị `TOTAL_PRICE_FOOD` trong table nếu chưa có
+      table.TOTAL_PRICE_FOOD = totalPriceFood;
+
+      // Tính tổng giá dịch vụ trong bàn
+      const totalPriceServices = table.SERVICES.reduce(
+        (sum, service) => sum + (service.servicePrice || 0),
+        0
+      );
+
+      // Lấy giá của bàn
+      const tablePrice = table.TABLE_PRICE || 0;
+
+      // Tính tổng giá của bàn hiện tại
+      const totalTablePrice = totalPriceFood + totalPriceServices + tablePrice;
+
+      // Cộng vào tổng giá trị của toàn bộ giỏ hàng
+      return total + totalTablePrice;
+    }, 0);
+  }
+
+  mergeTables(listTables) {
+    const mergedTables = {};
+
+    listTables.forEach((table) => {
+      const tableId = table.TABLE_ID.toString();
+
+      if (!mergedTables[tableId]) {
+        mergedTables[tableId] = {
+          ...table,
+          SERVICES: [...table.SERVICES],
+          LIST_FOOD: [...table.LIST_FOOD],
+        };
+      } else {
+        // Gộp dịch vụ
+        table.SERVICES.forEach((service) => {
+          const existingService = mergedTables[tableId].SERVICES.find(
+            (s) => s.serviceName === service.serviceName
+          );
+          if (!existingService) {
+            mergedTables[tableId].SERVICES.push(service);
+          }
+        });
+
+        // Gộp món ăn
+        table.LIST_FOOD.forEach((food) => {
+          const existingFood = mergedTables[tableId].LIST_FOOD.find(
+            (f) => f.FOOD_ID.toString() === food.FOOD_ID.toString()
+          );
+          if (existingFood) {
+            existingFood.QUANTITY += food.QUANTITY;
+          } else {
+            mergedTables[tableId].LIST_FOOD.push(food);
+          }
+        });
+      }
+    });
+
+    return Object.values(mergedTables);
+  }
+
   async getCartByUserId(userId) {
     const cart = await CART_MODEL.aggregate([
       {
@@ -276,6 +344,24 @@ class CART_SERVICE {
       {
         $unwind: { path: "$tableDetails", preserveNullAndEmptyArrays: true },
       },
+      // Loại bỏ AVAILABILITY từ tableDetails
+      {
+        $addFields: {
+          tableDetails: {
+            _id: "$tableDetails._id",
+            TYPE: "$tableDetails.TYPE",
+            PRICE: "$tableDetails.PRICE",
+            DESCRIPTION: "$tableDetails.DESCRIPTION",
+            IMAGES: "$tableDetails.IMAGES",
+            CAPACITY: "$tableDetails.CAPACITY",
+            IS_DELETED: "$tableDetails.IS_DELETED",
+            SERVICES: "$tableDetails.SERVICES",
+            TABLE_NUMBER: "$tableDetails.TABLE_NUMBER",
+            DEPOSIT: "$tableDetails.DEPOSIT",
+            // Không bao gồm AVAILABILITY
+          },
+        },
+      },
       {
         $lookup: {
           from: "foods",
@@ -285,7 +371,35 @@ class CART_SERVICE {
         },
       },
       {
-        $unwind: { path: "$foodDetails", preserveNullAndEmptyArrays: true },
+        $addFields: {
+          "LIST_TABLES.LIST_FOOD": {
+            $map: {
+              input: "$LIST_TABLES.LIST_FOOD",
+              as: "foodItem",
+              in: {
+                $mergeObjects: [
+                  "$$foodItem",
+                  {
+                    foodPrice: {
+                      $arrayElemAt: [
+                        {
+                          $filter: {
+                            input: "$foodDetails",
+                            as: "foodDetail",
+                            cond: {
+                              $eq: ["$$foodDetail._id", "$$foodItem.FOOD_ID"],
+                            },
+                          },
+                        },
+                        0,
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
       },
       {
         $addFields: {
@@ -294,7 +408,12 @@ class CART_SERVICE {
               $map: {
                 input: "$LIST_TABLES.LIST_FOOD",
                 as: "food",
-                in: { $multiply: ["$$food.QUANTITY", "$foodDetails.PRICE"] },
+                in: {
+                  $multiply: [
+                    "$$food.QUANTITY",
+                    { $ifNull: ["$$food.foodPrice.PRICE", 0] }, // Đảm bảo dùng đúng giá của từng món ăn
+                  ],
+                },
               },
             },
           },
@@ -308,6 +427,23 @@ class CART_SERVICE {
               },
             },
           },
+          // Gộp tableInfo với các trường cần thiết
+          "LIST_TABLES.tableInfo": {
+            $mergeObjects: [
+              {
+                _id: "$tableDetails._id",
+                TYPE: "$tableDetails.TYPE",
+                PRICE: "$tableDetails.PRICE",
+                DESCRIPTION: "$tableDetails.DESCRIPTION",
+                IMAGES: "$tableDetails.IMAGES",
+                CAPACITY: "$tableDetails.CAPACITY",
+                IS_DELETED: "$tableDetails.IS_DELETED",
+                SERVICES: "$tableDetails.SERVICES",
+                TABLE_NUMBER: "$tableDetails.TABLE_NUMBER",
+                DEPOSIT: "$tableDetails.DEPOSIT",
+              },
+            ],
+          },
         },
       },
       {
@@ -315,15 +451,6 @@ class CART_SERVICE {
           _id: "$_id",
           USER_ID: { $first: "$USER_ID" },
           LIST_TABLES: { $push: "$LIST_TABLES" },
-          TOTAL_PRICES: {
-            $sum: {
-              $add: [
-                { $ifNull: ["$LIST_TABLES.TOTAL_PRICE_FOOD", 0] },
-                { $ifNull: ["$LIST_TABLES.TABLE_PRICE", 0] },
-                { $ifNull: ["$LIST_TABLES.TOTAL_SERVICE_PRICE", 0] }, // Cộng giá của dịch vụ vào tổng giá
-              ],
-            },
-          },
         },
       },
       {
@@ -331,7 +458,6 @@ class CART_SERVICE {
           _id: 0,
           USER_ID: 1,
           LIST_TABLES: 1,
-          TOTAL_PRICES: 1,
         },
       },
     ]);
@@ -340,7 +466,120 @@ class CART_SERVICE {
       throw new Error("Cart not found");
     }
 
+    // Gộp các bàn lại nếu có cùng TABLE_ID
+    cart[0].LIST_TABLES = this.mergeTables(cart[0].LIST_TABLES);
+
+    // Tính tổng giá tiền bao gồm tất cả các bàn
+    cart[0].TOTAL_PRICES = this.calculateTotalPrices(cart[0].LIST_TABLES);
+
     return cart[0];
+  }
+
+  // Hàm gộp các bàn cùng TABLE_ID
+  mergeTables(listTables) {
+    const mergedTables = [];
+
+    listTables.forEach((table) => {
+      const existingTable = mergedTables.find(
+        (t) => t.TABLE_ID.toString() === table.TABLE_ID.toString()
+      );
+
+      if (existingTable) {
+        existingTable.LIST_FOOD = [
+          ...existingTable.LIST_FOOD,
+          ...table.LIST_FOOD,
+        ];
+        existingTable.SERVICES = [...existingTable.SERVICES, ...table.SERVICES];
+        existingTable.TOTAL_PRICE_FOOD += table.TOTAL_PRICE_FOOD;
+        existingTable.TOTAL_SERVICE_PRICE += table.TOTAL_SERVICE_PRICE;
+      } else {
+        mergedTables.push(table);
+      }
+    });
+
+    return mergedTables;
+  }
+
+  async addFoodToTable(userId, tableId, listFood) {
+    let cart = await CART_MODEL.findOne({ USER_ID: userId });
+
+    if (!cart) {
+      throw new Error("Cart not found");
+    }
+
+    // Tìm bàn trong giỏ hàng
+    let tableInCart = cart.LIST_TABLES.find(
+      (table) => table.TABLE_ID.toString() === tableId
+    );
+
+    if (!tableInCart) {
+      throw new Error("Table not found in cart");
+    }
+
+    // Duyệt qua từng món ăn trong danh sách
+    for (const foodItem of listFood) {
+      const foodInTable = tableInCart.LIST_FOOD.find(
+        (food) => food.FOOD_ID.toString() === foodItem.FOOD_ID
+      );
+
+      if (foodInTable) {
+        // Nếu món ăn đã tồn tại, cập nhật số lượng
+        foodInTable.QUANTITY += foodItem.QUANTITY;
+        foodInTable.TOTAL_PRICE_FOOD =
+          foodInTable.QUANTITY *
+          (foodInTable.TOTAL_PRICE_FOOD / foodInTable.QUANTITY);
+      } else {
+        // Nếu món ăn chưa tồn tại, thêm món mới
+        const food = await FOOD_MODEL.findById(foodItem.FOOD_ID);
+        if (!food) {
+          throw new Error(`Food with ID ${foodItem.FOOD_ID} not found`);
+        }
+
+        tableInCart.LIST_FOOD.push({
+          FOOD_ID: food._id,
+          QUANTITY: foodItem.QUANTITY,
+          TOTAL_PRICE_FOOD: food.PRICE * foodItem.QUANTITY,
+        });
+      }
+    }
+
+    await cart.save();
+    return cart;
+  }
+
+  async updateFoodInTable(userId, tableId, foodId, newQuantity) {
+    let cart = await CART_MODEL.findOne({ USER_ID: userId });
+
+    if (!cart) {
+      throw new Error("Cart not found");
+    }
+
+    // Tìm bàn trong giỏ hàng
+    let tableInCart = cart.LIST_TABLES.find(
+      (table) => table.TABLE_ID.toString() === tableId
+    );
+
+    if (!tableInCart) {
+      throw new Error("Table not found in cart");
+    }
+
+    // Tìm món ăn trong bàn
+    let foodInTable = tableInCart.LIST_FOOD.find(
+      (food) => food.FOOD_ID.toString() === foodId
+    );
+
+    if (!foodInTable) {
+      throw new Error("Food not found in table");
+    }
+
+    // Cập nhật số lượng món ăn
+    foodInTable.QUANTITY = newQuantity;
+    foodInTable.TOTAL_PRICE_FOOD =
+      foodInTable.QUANTITY *
+      (foodInTable.TOTAL_PRICE_FOOD / foodInTable.QUANTITY);
+
+    await cart.save();
+    return cart;
   }
 }
 

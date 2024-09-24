@@ -1,4 +1,5 @@
 const TableService = require("../../Services/Table/Table.Service");
+const Table = require("../../Models/Table/Table.Model");
 
 class TableController {
   async createTable(req, res) {
@@ -144,6 +145,72 @@ class TableController {
       res.status(200).json({ success: true, data: deletedTable });
     } catch (error) {
       res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
+  async getAvailableDates(req, res) {
+    try {
+      const availableDates = await Table.aggregate([
+        { $unwind: "$AVAILABILITY" }, // Tách từng phần tử trong mảng AVAILABILITY thành các tài liệu riêng biệt
+        { $match: { "AVAILABILITY.AVAILABLE": true } }, // Chỉ lấy những ngày có AVAILABLE là true
+        {
+          $group: {
+            _id: "$AVAILABILITY.DATE", // Nhóm theo ngày
+            tables: { $push: "$TABLE_NUMBER" }, // Đưa số bàn vào một mảng
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            date: "$_id",
+            tables: 1,
+          },
+        },
+        { $sort: { date: 1 } }, // Sắp xếp theo ngày tăng dần
+      ]);
+
+      return res.status(200).json({
+        success: true,
+        data: availableDates,
+      });
+    } catch (error) {
+      console.error("Error fetching available dates:", error.message);
+      return res.status(500).json({
+        success: false,
+        message: "Error fetching available dates.",
+        error: error.message,
+      });
+    }
+  }
+
+  async getAvailableTablesByDate(req, res) {
+    try {
+      const { date } = req.query; // Lấy ngày từ query parameter
+
+      if (!date) {
+        return res.status(400).json({
+          success: false,
+          message: "Date is required",
+        });
+      }
+
+      // Tìm tất cả các bàn có ngày trống
+      const tables = await Table.find({
+        "AVAILABILITY.DATE": new Date(date),
+        "AVAILABILITY.AVAILABLE": true,
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: tables,
+      });
+    } catch (error) {
+      console.error("Error fetching available tables by date:", error.message);
+      return res.status(500).json({
+        success: false,
+        message: "Error fetching available tables by date.",
+        error: error.message,
+      });
     }
   }
 }
