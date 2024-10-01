@@ -1,70 +1,87 @@
-const BOOKING_SERVICE = require("../../Service/Booking/Booking.Service");
+const BookingService = require("../../Services/Booking/Booking.Service");
 
-class BOOKING_CONTROLLER {
-  async bookFromCart(req, res) {
+class BookingController {
+  // Tạo booking từ giỏ hàng
+  async createBookingFromCart(req, res) {
     try {
-      const userId = req.user_id;
-      const { bookingDetails } = req.body;
+      const userId = req.user_id; // Lấy userId từ token
 
-      const booking = await BOOKING_SERVICE.bookFromCart(
-        userId,
-        bookingDetails
-      );
+      const booking = await BookingService.createBookingFromCart(userId);
 
-      return res.status(200).json({
-        success: true,
-        data: booking,
-      });
-    } catch (error) {
-      console.error("Error booking from cart:", error.message);
-      return res.status(500).json({
-        success: false,
-        message: "Error booking from cart.",
-        error: error.message,
-      });
-    }
-  }
-
-  async updateBookingStatus(req, res) {
-    try {
-      const { bookingId } = req.body; // Lấy bookingId từ request
-
-      // Gọi service để cập nhật trạng thái
-      const booking = await BOOKING_SERVICE.updateBookingStatus(bookingId);
-
-      return res.status(200).json({
+      return res.status(201).json({
         success: true,
         data: booking,
       });
     } catch (error) {
       return res.status(500).json({
         success: false,
-        message: "Error updating booking status.",
-        error: error.message,
+        message: error.message,
       });
     }
   }
 
-  // Lấy tất cả các booking của một user
+  // Lấy danh sách booking theo userId
   async getBookingsByUserId(req, res) {
     try {
-      const userId = req.user_id; // Lấy userId từ token hoặc session
+      const userId = req.user_id; // Lấy userId từ token
 
-      const bookings = await BOOKING_SERVICE.find({ USER_ID: userId });
+      const bookings = await BookingService.getBookingsByUserId(userId);
 
       return res.status(200).json({
         success: true,
         data: bookings,
       });
     } catch (error) {
-      console.error("Error retrieving bookings:", error.message);
       return res.status(500).json({
         success: false,
-        message: "Error retrieving bookings.",
-        error: error.message,
+        message: error.message,
+      });
+    }
+  }
+
+  // Cập nhật trạng thái booking
+  async updateBookingStatus(req, res) {
+    try {
+      const { bookingId, status } = req.body;
+
+      const updatedBooking = await BookingService.updateBookingStatus(
+        bookingId,
+        status
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: updatedBooking,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  // Cập nhật trạng thái thanh toán
+  async updatePaymentStatus(req, res) {
+    try {
+      const { bookingId, paymentStatus } = req.body;
+
+      const updatedBooking = await BookingService.updatePaymentStatus(
+        bookingId,
+        paymentStatus
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: updatedBooking,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: error.message,
       });
     }
   }
 }
 
-module.exports = new BOOKING_CONTROLLER();
+module.exports = new BookingController();

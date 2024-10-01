@@ -5,27 +5,42 @@ const BookingSchema = new Schema(
   {
     USER_ID: {
       type: Schema.Types.ObjectId,
+      ref: "User",
       required: true,
     },
-    LIST_ROOMS: [
+    LIST_TABLES: [
       {
-        ROOM_ID: {
+        TABLE_ID: {
           type: Schema.Types.ObjectId,
-          required: true,
-          ref: "Room",
-        },
-        START_DATE: {
-          type: Date,
+          ref: "Table",
           required: true,
         },
-        END_DATE: {
-          type: Date,
+        BOOKING_TIME: {
+          type: String,
           required: true,
         },
-        TOTAL_PRICE_ROOM: {
-          type: Number,
-          required: true,
-        },
+        SERVICES: [
+          {
+            serviceName: String,
+            servicePrice: Number,
+            _id: false,
+          },
+        ],
+        LIST_FOOD: [
+          {
+            FOOD_ID: {
+              type: Schema.Types.ObjectId,
+              ref: "Food",
+              required: false,
+            },
+            QUANTITY: {
+              type: Number,
+              required: false,
+            },
+            _id: false,
+          },
+        ],
+        _id: false,
       },
     ],
     TOTAL_PRICE: {
@@ -34,25 +49,23 @@ const BookingSchema = new Schema(
     },
     STATUS: {
       type: String,
-      enum: ["NotYetPaid", "Booked", "CheckedIn", "Canceled", "CheckedOut"],
-      required: true,
+      enum: ["pending", "confirmed", "cancelled", "completed"],
+      default: "pending",
     },
-    BOOKING_TYPE: {
+    PAYMENT_STATUS: {
       type: String,
-      enum: ["Calling", "Email", "Website", "Live"],
+      enum: ["unpaid", "paid"],
+      default: "unpaid",
     },
-    CUSTOMER_PHONE: {
+    PAYMENT_METHOD: {
       type: String,
-      required: true,
-    },
-    CUSTOMER_NAME: {
-      type: String,
-      required: true,
+      enum: ["cash", "credit_card", "paypal"],
+      default: "cash",
     },
   },
   {
-    versionKey: false,
     timestamps: true,
+    versionKey: false,
   }
 );
 

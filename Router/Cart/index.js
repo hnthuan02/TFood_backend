@@ -14,5 +14,16 @@ router.put(
   verifyToken,
   CART_CONTROLLER.updateFoodInTable
 );
+router.post(
+  "/removeFoodFromTable",
+  verifyToken,
+  CART_CONTROLLER.removeFoodFromTable
+);
+router.post(
+  "/removeTableFromCart",
+  verifyToken,
+  CART_CONTROLLER.removeTableFromCart
+);
+router.post("/addServiceToCart", verifyToken, CART_CONTROLLER.addServiceToCart);
 
 module.exports = router;

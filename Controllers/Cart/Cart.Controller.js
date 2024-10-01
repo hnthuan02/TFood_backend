@@ -82,7 +82,8 @@ class CART_CONTROLLER {
     } catch (error) {
       return res.status(500).json({
         success: false,
-        message: error.message,
+        message: "Error removing table from cart.",
+        error: error.message,
       });
     }
   }
@@ -231,6 +232,37 @@ class CART_CONTROLLER {
       return res.status(500).json({
         success: false,
         message: "Error updating food in table.",
+        error: error.message,
+      });
+    }
+  }
+  async addServiceToCart(req, res) {
+    try {
+      const { tableId, selectedServices } = req.body;
+      const userId = req.user_id;
+
+      if (!selectedServices || selectedServices.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "No services selected.",
+        });
+      }
+
+      const cart = await CART_SERVICE.addServiceToCart(
+        userId,
+        tableId,
+        selectedServices
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: cart,
+      });
+    } catch (error) {
+      console.error("Error adding services to cart:", error.message);
+      return res.status(500).json({
+        success: false,
+        message: "Error adding services to cart.",
         error: error.message,
       });
     }

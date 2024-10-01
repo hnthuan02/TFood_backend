@@ -109,19 +109,8 @@ class TableController {
         )
       );
 
-      // Gom các bảng có cùng TYPE và CAPACITY
-      const groupedTables = availableTables.reduce((acc, table) => {
-        const key = `${table.TYPE}_${table.CAPACITY}`;
-        if (!acc[key]) {
-          acc[key] = { ...table, COUNT: 1 };
-        } else {
-          acc[key].COUNT += 1;
-        }
-        return acc;
-      }, {});
-
-      const result = Object.values(groupedTables);
-      res.status(200).json({ success: true, data: result });
+      // Không nhóm các bảng lại mà trả về toàn bộ danh sách các bàn có sẵn
+      res.status(200).json({ success: true, data: availableTables });
     } catch (error) {
       res.status(400).json({ success: false, message: error.message });
     }
