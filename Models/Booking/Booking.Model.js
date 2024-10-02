@@ -1,3 +1,4 @@
+const { required } = require("joi");
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
@@ -6,6 +7,18 @@ const BookingSchema = new Schema(
     USER_ID: {
       type: Schema.Types.ObjectId,
       ref: "User",
+      required: false,
+    },
+    USER_NAME: {
+      type: String,
+      required: true,
+    },
+    PHONE_NUMBER: {
+      type: String,
+      required: true,
+    },
+    EMAIL: {
+      type: String,
       required: true,
     },
     LIST_TABLES: [
@@ -54,13 +67,13 @@ const BookingSchema = new Schema(
     },
     PAYMENT_STATUS: {
       type: String,
-      enum: ["unpaid", "paid"],
+      enum: ["unpaid", "paid", "deposited"],
       default: "unpaid",
     },
     PAYMENT_METHOD: {
       type: String,
-      enum: ["cash", "credit_card", "paypal"],
-      default: "cash",
+      enum: ["banking", "vnpay", "zalopay"],
+      default: "banking",
     },
   },
   {

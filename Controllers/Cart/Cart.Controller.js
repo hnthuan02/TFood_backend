@@ -21,7 +21,7 @@ class CART_CONTROLLER {
 
   async addTableToCart(req, res) {
     try {
-      const { tableId, bookingTime, services, listFood = [] } = req.body; // Khởi tạo listFood là mảng rỗng nếu không có
+      const { tableId, bookingTime, services = [], listFood = [] } = req.body; // Khởi tạo listFood là mảng rỗng nếu không có
       const userId = req.user_id;
 
       // Thêm bàn vào giỏ hàng, xử lý listFood là mảng rỗng hoặc không
@@ -238,25 +238,26 @@ class CART_CONTROLLER {
   }
   async addServiceToCart(req, res) {
     try {
-      const { tableId, selectedServices } = req.body;
-      const userId = req.user_id;
+      const { tableId, selectedServiceIds } = req.body; // Lấy selectedServiceIds từ request body
+      const userId = req.user_id; // Lấy user_id từ token hoặc request
 
-      if (!selectedServices || selectedServices.length === 0) {
+      if (!selectedServiceIds || selectedServiceIds.length === 0) {
         return res.status(400).json({
           success: false,
           message: "No services selected.",
         });
       }
 
+      // Gọi hàm service để thêm dịch vụ vào giỏ hàng
       const cart = await CART_SERVICE.addServiceToCart(
         userId,
         tableId,
-        selectedServices
+        selectedServiceIds // Truyền danh sách ID dịch vụ vào
       );
 
       return res.status(200).json({
         success: true,
-        data: cart,
+        data: cart, // Trả về thông tin giỏ hàng sau khi cập nhật
       });
     } catch (error) {
       console.error("Error adding services to cart:", error.message);

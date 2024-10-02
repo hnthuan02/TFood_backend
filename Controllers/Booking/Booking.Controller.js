@@ -5,8 +5,24 @@ class BookingController {
   async createBookingFromCart(req, res) {
     try {
       const userId = req.user_id; // Lấy userId từ token
+      const { userName, phoneNumber, email } = req.body; // Lấy thông tin người dùng từ frontend
 
-      const booking = await BookingService.createBookingFromCart(userId);
+      // Kiểm tra xem các thông tin người dùng đã được cung cấp chưa
+      if (!userName || !phoneNumber || !email) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Thiếu thông tin người dùng (USER_NAME, PHONE_NUMBER, EMAIL)",
+        });
+      }
+
+      // Tạo booking từ giỏ hàng và thông tin người dùng
+      const booking = await BookingService.createBookingFromCart(
+        userId,
+        userName,
+        phoneNumber,
+        email
+      );
 
       return res.status(201).json({
         success: true,
@@ -15,7 +31,7 @@ class BookingController {
     } catch (error) {
       return res.status(500).json({
         success: false,
-        message: error.message,
+        message: `Error creating booking from cart: ${error.message}`,
       });
     }
   }

@@ -20,9 +20,9 @@ const CartSchema = new Schema(
         },
         SERVICES: [
           {
-            serviceName: String,
-            servicePrice: Number,
-            _id: false,
+            type: Schema.Types.ObjectId,
+            ref: "ServiceTable",
+            required: true,
           },
         ],
         LIST_FOOD: [

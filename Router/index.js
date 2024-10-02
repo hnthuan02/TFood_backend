@@ -5,6 +5,7 @@ const foodRouter = require("./Food");
 const cartRouter = require("./Cart");
 const tableRouter = require("./Table");
 const bookingRouter = require("./Booking");
+const serviceTableRouter = require("./ServiceTable");
 
 function route(app) {
   app.use("/users", userRouter);
@@ -13,6 +14,7 @@ function route(app) {
   app.use("/carts", cartRouter);
   app.use("/tables", tableRouter);
   app.use("/booking", bookingRouter);
+  app.use("/serviceTables", serviceTableRouter);
 }
 
 module.exports = route;

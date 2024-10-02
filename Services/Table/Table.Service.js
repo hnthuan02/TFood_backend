@@ -2,21 +2,6 @@ const Table = require("../../Models/Table/Table.Model");
 
 class TableService {
   async createTable(data) {
-    const startDate = new Date();
-    const endDate = new Date();
-    endDate.setMonth(endDate.getMonth() + 1);
-
-    const availability = [];
-    let currentDate = startDate;
-
-    while (currentDate <= endDate) {
-      availability.push({
-        DATE: new Date(currentDate),
-        AVAILABLE: true,
-      });
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-    data.AVAILABILITY = availability;
     const newTable = new Table(data);
     return await newTable.save();
   }

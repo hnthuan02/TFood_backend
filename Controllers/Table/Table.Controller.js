@@ -1,5 +1,6 @@
 const TableService = require("../../Services/Table/Table.Service");
 const Table = require("../../Models/Table/Table.Model");
+const moment = require("moment");
 
 class TableController {
   async createTable(req, res) {
@@ -75,9 +76,49 @@ class TableController {
     }
   }
 
+  // async getAllTables(req, res) {
+  //   try {
+  //     const { date, people } = req.query; // Lấy ngày và số người từ query parameter
+
+  //     if (!date) {
+  //       return res
+  //         .status(400)
+  //         .json({ success: false, message: "Date is required" });
+  //     }
+
+  //     if (!people || isNaN(people)) {
+  //       return res.status(400).json({
+  //         success: false,
+  //         message: "Number of people is required and must be a number",
+  //       });
+  //     }
+
+  //     const selectedDate = new Date(date);
+  //     const minPeople = parseInt(people, 10);
+  //     const query = {
+  //       IS_DELETED: false,
+  //       CAPACITY: { $gte: minPeople }, // Đảm bảo CAPACITY lớn hơn hoặc bằng số người
+  //     };
+  //     const tables = await TableService.getAllTables(query);
+
+  //     // Lọc các bàn có AVAILABLE là true trong ngày đã chọn
+  //     const availableTables = tables.filter((table) =>
+  //       table.AVAILABILITY.some(
+  //         (availability) =>
+  //           new Date(availability.DATE).toISOString().split("T")[0] ===
+  //             selectedDate.toISOString().split("T")[0] && availability.AVAILABLE
+  //       )
+  //     );
+
+  //     res.status(200).json({ success: true, data: availableTables });
+  //   } catch (error) {
+  //     res.status(400).json({ success: false, message: error.message });
+  //   }
+  // }
+
   async getAllTables(req, res) {
     try {
-      const { date, people } = req.query; // Lấy ngày và số người từ query parameter
+      const { date, people, bookingTime } = req.query; // Lấy ngày, số người, và thời gian đặt từ query parameters
 
       if (!date) {
         return res
@@ -92,24 +133,44 @@ class TableController {
         });
       }
 
-      const selectedDate = new Date(date);
+      if (!bookingTime) {
+        return res.status(400).json({
+          success: false,
+          message: "Booking time is required",
+        });
+      }
+
+      const selectedDate = moment(date).startOf("day"); // Lấy ngày được chọn
+      const selectedBookingTime = moment(`${date} ${bookingTime}`); // Kết hợp ngày và thời gian đặt
+
       const minPeople = parseInt(people, 10);
-      const query = {
+
+      // Lấy tất cả các bàn phù hợp với số người và chưa bị xóa
+      const tables = await TableService.getAllTables({
         IS_DELETED: false,
         CAPACITY: { $gte: minPeople }, // Đảm bảo CAPACITY lớn hơn hoặc bằng số người
-      };
-      const tables = await TableService.getAllTables(query);
+      });
 
-      // Lọc các bàn có AVAILABLE là true trong ngày đã chọn
-      const availableTables = tables.filter((table) =>
-        table.AVAILABILITY.some(
-          (availability) =>
-            new Date(availability.DATE).toISOString().split("T")[0] ===
-              selectedDate.toISOString().split("T")[0] && availability.AVAILABLE
-        )
-      );
+      // Lọc các bàn có sẵn, không bị trùng giờ trong cùng ngày với khoảng cách 3 giờ
+      const availableTables = tables.filter((table) => {
+        // Lọc các BOOKING_TIMES trong cùng ngày
+        const bookingTimesOnSelectedDate = table.BOOKING_TIMES.filter(
+          (booking) => moment(booking).isSame(selectedDate, "day")
+        );
 
-      // Không nhóm các bảng lại mà trả về toàn bộ danh sách các bàn có sẵn
+        // Kiểm tra nếu tất cả các thời gian trong ngày đều cách ít nhất 3 giờ so với selectedBookingTime
+        const isTimeAvailable = bookingTimesOnSelectedDate.every((time) => {
+          const existingTime = moment(time);
+          const diffInHours = Math.abs(
+            existingTime.diff(selectedBookingTime, "hours")
+          );
+          return diffInHours >= 3; // Đảm bảo cách ít nhất 3 giờ
+        });
+
+        // Trả về bàn nếu thời gian không trùng với các thời gian đã đặt
+        return isTimeAvailable;
+      });
+
       res.status(200).json({ success: true, data: availableTables });
     } catch (error) {
       res.status(400).json({ success: false, message: error.message });
