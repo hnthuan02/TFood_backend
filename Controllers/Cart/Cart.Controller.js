@@ -71,10 +71,14 @@ class CART_CONTROLLER {
 
   async removeTableFromCart(req, res) {
     try {
-      const { tableId } = req.body;
+      const { tableId, bookingTime } = req.body;
       const userId = req.user_id;
 
-      const cart = await CART_SERVICE.removeTableFromCart(userId, tableId);
+      const cart = await CART_SERVICE.removeTableFromCart(
+        userId,
+        tableId,
+        bookingTime
+      );
       return res.status(200).json({
         success: true,
         data: cart,
@@ -238,18 +242,11 @@ class CART_CONTROLLER {
   }
   async addServiceToCart(req, res) {
     try {
-      const { tableId, selectedServiceIds } = req.body; // Lấy selectedServiceIds từ request body
-      const userId = req.user_id; // Lấy user_id từ token hoặc request
+      const { tableId, selectedServiceIds } = req.body;
+      const userId = req.user_id;
 
-      if (!selectedServiceIds || selectedServiceIds.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: "No services selected.",
-        });
-      }
-
-      // Gọi hàm service để thêm dịch vụ vào giỏ hàng
-      const cart = await CART_SERVICE.addServiceToCart(
+      // Gọi hàm service để cập nhật dịch vụ trong giỏ hàng
+      const cart = await CART_SERVICE.updateServicesInCart(
         userId,
         tableId,
         selectedServiceIds // Truyền danh sách ID dịch vụ vào
@@ -264,6 +261,38 @@ class CART_CONTROLLER {
       return res.status(500).json({
         success: false,
         message: "Error adding services to cart.",
+        error: error.message,
+      });
+    }
+  }
+
+  async updateServiceInCart(req, res) {
+    try {
+      const { tableId, selectedServices } = req.body; // Lấy thông tin từ body
+      const userId = req.user_id;
+
+      if (!selectedServices || selectedServices.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "No services selected.",
+        });
+      }
+
+      const cart = await CART_SERVICE.updateServiceInCart(
+        userId,
+        tableId,
+        selectedServices
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: cart,
+      });
+    } catch (error) {
+      console.error("Error updating services in cart:", error.message);
+      return res.status(500).json({
+        success: false,
+        message: "Error updating services in cart.",
         error: error.message,
       });
     }

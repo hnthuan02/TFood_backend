@@ -25,5 +25,6 @@ router.post(
   CART_CONTROLLER.removeTableFromCart
 );
 router.post("/addServiceToCart", verifyToken, CART_CONTROLLER.addServiceToCart);
+router.put("/updateService", CART_CONTROLLER.updateServiceInCart);
 
 module.exports = router;

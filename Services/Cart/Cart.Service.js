@@ -31,13 +31,13 @@ class CART_SERVICE {
     if (tableInCart) {
       // Nếu bàn đã có trong giỏ hàng, nhưng có thể có nhiều BOOKING_TIME khác nhau
       if (tableInCart.BOOKING_TIME === bookingTime) {
-        // Nếu thời gian đặt giống nhau, không thêm nữa, có thể thông báo hoặc xử lý khác
+        // Nếu thời gian đặt giống nhau, không thêm nữa
         throw new Error(
           "This table has already been booked for the selected time."
         );
       }
 
-      // Nếu thời gian khác nhau, bạn có thể thêm bàn mới với cùng ID nhưng khác thời gian
+      // Nếu thời gian khác nhau, thêm bàn mới
       const newTableEntry = {
         TABLE_ID: tableId,
         BOOKING_TIME: bookingTime,
@@ -66,10 +66,23 @@ class CART_SERVICE {
         });
       }
 
+      const listServiceItems = []; // Sửa lại biến để lưu dịch vụ
+      for (const serviceItem of services) {
+        const serviceTable = await ServiceTable.findById(serviceItem._id);
+        if (!serviceTable) {
+          throw new Error(`ServiceTable with ID ${serviceItem._id} not found`);
+        }
+        // Lưu đúng ID của dịch vụ
+        listServiceItems.push({
+          SERVICES_ID: serviceTable._id,
+        });
+      }
+
+      // Thêm bàn mới vào LIST_TABLES
       cart.LIST_TABLES.push({
         TABLE_ID: tableId,
         BOOKING_TIME: bookingTime,
-        SERVICES: services,
+        SERVICES: listServiceItems, // Sử dụng danh sách dịch vụ đã cập nhật
         LIST_FOOD: listFoodItems,
       });
     }
@@ -131,7 +144,7 @@ class CART_SERVICE {
     }
   }
 
-  async removeTableFromCart(userId, tableId) {
+  async removeTableFromCart(userId, tableId, bookingTime) {
     // Tìm giỏ hàng của người dùng
     let cart = await CART_MODEL.findOne({ USER_ID: userId });
 
@@ -141,7 +154,11 @@ class CART_SERVICE {
 
     // Lọc bỏ bàn có TABLE_ID bằng với tableId
     cart.LIST_TABLES = cart.LIST_TABLES.filter(
-      (table) => table.TABLE_ID.toString() !== tableId
+      (table) =>
+        !(
+          table.TABLE_ID.toString() === tableId &&
+          table.BOOKING_TIME === bookingTime
+        )
     );
 
     // **Kiểm tra nếu LIST_TABLES trống sau khi xóa bàn**
@@ -235,41 +252,6 @@ class CART_SERVICE {
     return cart;
   }
 
-  async updateServiceInCart(userId, tableId, serviceName, newService) {
-    let cart = await CART_MODEL.findOne({ USER_ID: userId });
-
-    if (!cart) {
-      throw new Error("Cart not found");
-    }
-
-    // Tìm bàn trong giỏ hàng
-    let tableInCart = cart.LIST_TABLES.find(
-      (table) => table.TABLE_ID.toString() === tableId
-    );
-
-    if (!tableInCart) {
-      throw new Error("Table not found in cart");
-    }
-
-    // Tìm và thay đổi dịch vụ trong SERVICES
-    let serviceInTable = tableInCart.SERVICES.find(
-      (service) => service.serviceName === serviceName
-    );
-
-    if (!serviceInTable) {
-      throw new Error("Service not found in table");
-    }
-
-    // Thay đổi thông tin dịch vụ
-    serviceInTable.serviceName =
-      newService.serviceName || serviceInTable.serviceName;
-    serviceInTable.servicePrice =
-      newService.servicePrice || serviceInTable.servicePrice;
-
-    await cart.save();
-    return cart;
-  }
-
   // calculateTotalPrices(listTables) {
   //   const tables = listTables || [];
   //   return tables.reduce((total, table) => {
@@ -326,19 +308,19 @@ class CART_SERVICE {
       {
         $unwind: { path: "$tableDetails", preserveNullAndEmptyArrays: true },
       },
-      // Loại bỏ AVAILABILITY từ tableDetails
       {
         $addFields: {
           tableDetails: {
             _id: "$tableDetails._id",
             TYPE: "$tableDetails.TYPE",
+            PRICE: "$tableDetails.PRICE",
             DESCRIPTION: "$tableDetails.DESCRIPTION",
             IMAGES: "$tableDetails.IMAGES",
             CAPACITY: "$tableDetails.CAPACITY",
             IS_DELETED: "$tableDetails.IS_DELETED",
             SERVICES: "$tableDetails.SERVICES",
             TABLE_NUMBER: "$tableDetails.TABLE_NUMBER",
-            // Không bao gồm AVAILABILITY
+            DEPOSIT: "$tableDetails.DEPOSIT",
           },
         },
       },
@@ -384,18 +366,17 @@ class CART_SERVICE {
       {
         $lookup: {
           from: "servicetables", // Tên collection chứa dịch vụ
-          localField: "LIST_TABLES.SERVICES",
+          localField: "LIST_TABLES.SERVICES.SERVICES_ID",
           foreignField: "_id",
           as: "serviceDetails",
         },
       },
-      // Ánh xạ thông tin dịch vụ
       {
         $addFields: {
           "LIST_TABLES.SERVICES": {
             $map: {
               input: "$LIST_TABLES.SERVICES",
-              as: "serviceId",
+              as: "service",
               in: {
                 $let: {
                   vars: {
@@ -406,7 +387,10 @@ class CART_SERVICE {
                             input: "$serviceDetails",
                             as: "serviceDetail",
                             cond: {
-                              $eq: ["$$serviceDetail._id", "$$serviceId"],
+                              $eq: [
+                                "$$serviceDetail._id",
+                                "$$service.SERVICES_ID",
+                              ],
                             },
                           },
                         },
@@ -467,7 +451,7 @@ class CART_SERVICE {
       },
       {
         $group: {
-          _id: "$_id",
+          _id: "$_id", // Giữ nguyên thông tin bàn
           USER_ID: { $first: "$USER_ID" },
           LIST_TABLES: { $push: "$LIST_TABLES" },
         },
@@ -491,8 +475,8 @@ class CART_SERVICE {
         TOTAL_PRICES: 0,
       };
     } else {
-      // Gộp các bàn lại nếu có cùng TABLE_ID
-      cartData.LIST_TABLES = this.mergeTables(cartData.LIST_TABLES || []);
+      // Không cần gộp lại bàn, vì đã lấy tất cả các bàn
+      cartData.LIST_TABLES = cartData.LIST_TABLES || [];
 
       // Tính tổng giá tiền bao gồm tất cả các bàn
       cartData.TOTAL_PRICES = await this.totalPriceCart(cartData.LIST_TABLES);
@@ -786,7 +770,8 @@ class CART_SERVICE {
     return cart;
   }
 
-  async addServiceToCart(userId, tableId, selectedServiceIds) {
+  async updateServicesInCart(userId, tableId, selectedServiceIds) {
+    // Tìm giỏ hàng của người dùng
     let cart = await CART_MODEL.findOne({ USER_ID: userId });
 
     if (!cart) {
@@ -808,26 +793,42 @@ class CART_SERVICE {
       throw new Error("Table not found in the system.");
     }
 
-    // Lấy danh sách dịch vụ từ ServiceTable Model
+    // Kiểm tra danh sách dịch vụ từ ServiceTable Model
     const servicesToAdd = await ServiceTable.find({
-      _id: { $in: selectedServiceIds }, // Chỉ lấy các dịch vụ được chọn theo id
+      _id: { $in: selectedServiceIds }, // Lấy các dịch vụ theo ID đã chọn
       type: table.TYPE, // Đảm bảo loại dịch vụ khớp với loại bàn
     });
 
-    if (servicesToAdd.length === 0) {
-      throw new Error("No valid services selected.");
-    }
+    // Log dịch vụ để kiểm tra
 
-    // Thêm dịch vụ vào giỏ hàng nếu chưa có
-    for (const newService of servicesToAdd) {
-      const isServiceExist = tableInCart.SERVICES.some(
-        (service) => service.toString() === newService._id.toString() // So sánh bằng _id
-      );
-      if (!isServiceExist) {
-        tableInCart.SERVICES.push(newService._id); // Lưu _id của dịch vụ vào giỏ hàng
+    // Xóa các dịch vụ cũ không còn trong selectedServiceIds
+    tableInCart.SERVICES = tableInCart.SERVICES.filter((service) =>
+      selectedServiceIds.includes(service.SERVICES_ID.toString())
+    );
+
+    // Nếu không có dịch vụ nào để thêm
+    if (servicesToAdd.length === 0) {
+      // Nếu không có dịch vụ nào được chọn, xóa tất cả dịch vụ
+      if (selectedServiceIds.length === 0) {
+        tableInCart.SERVICES = []; // Xóa tất cả dịch vụ
+      } else {
+        throw new Error("No valid services selected.");
+      }
+    } else {
+      // Thêm dịch vụ mới vào giỏ hàng
+      for (const newService of servicesToAdd) {
+        const isServiceExist = tableInCart.SERVICES.some(
+          (service) =>
+            service.SERVICES_ID.toString() === newService._id.toString()
+        );
+
+        if (!isServiceExist) {
+          tableInCart.SERVICES.push({ SERVICES_ID: newService._id });
+        }
       }
     }
 
+    // Lưu giỏ hàng sau khi cập nhật
     await cart.save();
     return cart;
   }
