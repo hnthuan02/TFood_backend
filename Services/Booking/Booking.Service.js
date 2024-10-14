@@ -1,11 +1,22 @@
 const Booking = require("../../Models/Booking/Booking.Model");
 const Cart = require("../../Models/Cart/Cart.Model");
+const Table = require("../../Models/Table/Table.Model");
+const Table_Service = require("../../Services/Table/Table.Service");
+const moment = require("moment");
 
 class BookingService {
   async createBookingFromCart(userId, userName, phoneNumber, email) {
     try {
-      // Lấy giỏ hàng của người dùng
-      const cart = await Cart.findOne({ USER_ID: userId });
+      const cart = await Cart.findOne({ USER_ID: userId })
+        .populate({
+          path: "LIST_TABLES.SERVICES.SERVICES_ID",
+          select: "servicePrice", // Lấy giá dịch vụ
+        })
+        .populate({
+          path: "LIST_TABLES.LIST_FOOD.FOOD_ID",
+          select: "PRICE", // Lấy giá món ăn
+        });
+
       if (!cart) {
         throw new Error("Cart is empty.");
       }
@@ -14,27 +25,50 @@ class BookingService {
 
       // Tính tổng giá
       const totalPrice = listTables.reduce((total, table) => {
-        const tablePrice = table.SERVICES.reduce((serviceTotal, service) => {
-          return serviceTotal + service.servicePrice;
+        // Tính tổng giá món ăn
+        const totalFoodPrice = table.LIST_FOOD.reduce((foodTotal, food) => {
+          const foodPrice = food.FOOD_ID ? food.FOOD_ID.PRICE : 0;
+          return foodTotal + (foodPrice * food.QUANTITY || 0);
         }, 0);
-        return total + tablePrice;
+
+        // Tính tổng giá dịch vụ
+        const totalServicePrice = table.SERVICES.reduce(
+          (serviceTotal, service) => {
+            if (service.SERVICES_ID) {
+              return serviceTotal + service.SERVICES_ID.servicePrice;
+            }
+            return serviceTotal;
+          },
+          0
+        );
+
+        return (
+          total + totalFoodPrice + totalServicePrice + (table.TABLE_PRICE || 0)
+        );
       }, 0);
 
-      // Tạo booking mới từ dữ liệu giỏ hàng
       const newBooking = new Booking({
         USER_ID: userId,
-        USER_NAME: userName, // Thông tin tên người dùng
-        PHONE_NUMBER: phoneNumber, // Thông tin số điện thoại
-        EMAIL: email, // Thông tin email
-        LIST_TABLES: listTables,
+        USER_NAME: userName,
+        PHONE_NUMBER: phoneNumber,
+        EMAIL: email,
+        LIST_TABLES: listTables.map((table) => ({
+          TABLE_ID: table.TABLE_ID,
+          BOOKING_TIME: table.BOOKING_TIME,
+          SERVICES: table.SERVICES.map((service) => ({
+            SERVICES_ID: service.SERVICES_ID ? service.SERVICES_ID._id : null,
+          })),
+          LIST_FOOD: table.LIST_FOOD.map((food) => ({
+            FOOD_ID: food.FOOD_ID._id,
+            QUANTITY: food.QUANTITY,
+          })),
+        })),
         TOTAL_PRICE: totalPrice,
-        PAYMENT_METHOD: "cash", // Mặc định là tiền mặt
+        STATUS: "NotYetPaid",
+        BOOKING_TYPE: "Website",
       });
 
-      // Lưu booking
       await newBooking.save();
-
-      // Xóa giỏ hàng sau khi đã tạo booking
       await Cart.findOneAndDelete({ USER_ID: userId });
 
       return newBooking;
@@ -86,6 +120,128 @@ class BookingService {
     } catch (error) {
       throw new Error("Error updating payment status: " + error.message);
     }
+  }
+
+  async updateBookingStatus({ bookingId, status }) {
+    try {
+      // Tìm booking bằng ID
+      const booking = await Booking.findById(bookingId);
+      if (!booking) throw new Error("Không tìm thấy đơn đặt bàn");
+
+      // Cập nhật trạng thái của đơn đặt phòng
+      booking.STATUS = status;
+      await booking.save();
+
+      // Cập nhật trạng thái phòng trong LIST_ROOMS của đơn đặt phòng
+      for (let table of booking.LIST_TABLES) {
+        await this.updateRoomAvailability(
+          table.TABLE_ID,
+          table.BOOKING_TIME,
+          booking.USER_ID
+        );
+      }
+
+      return {
+        statusCode: 200,
+        msg: `Trạng thái booking đã được cập nhật thành ${status}`,
+        data: booking,
+      };
+    } catch (error) {
+      return {
+        statusCode: 500,
+        msg: "Có lỗi xảy ra khi cập nhật trạng thái booking",
+        error: error.message,
+      };
+    }
+  }
+
+  // Cập nhật AVAILABILITY của các phòng đã đặt
+  async updateRoomAvailability(tableId, bookingTime, user_id) {
+    try {
+      // Tìm bàn bằng ID
+      const table = await Table.findById(tableId);
+      if (!table) throw new Error("Không tìm thấy bàn");
+
+      // Kiểm tra xem bookingTime đã tồn tại trong BOOKING_TIMES chưa
+      const isAlreadyBooked = table.BOOKING_TIMES.some(
+        (booking) => booking.START_TIME.toString() === bookingTime.toString()
+      );
+
+      if (!isAlreadyBooked) {
+        // Nếu chưa, thêm vào mảng BOOKING_TIMES
+        table.BOOKING_TIMES.push({
+          START_TIME: bookingTime,
+          USER_ID: user_id,
+        });
+      }
+
+      // Lưu các thay đổi
+      await table.save();
+    } catch (error) {
+      throw new Error(`Có lỗi xảy ra khi cập nhật bàn: ${error.message}`);
+    }
+  }
+
+  async bookTableNows(userId, tablesDetails, bookingType = "Website") {
+    let listTables = [];
+    let totalPrice = 0;
+
+    // Kiểm tra nếu chỉ có một phòng (object) hoặc nhiều phòng (array)
+    const isSingleTable = !Array.isArray(tablesDetails);
+
+    if (isSingleTable) {
+      // Trường hợp chỉ có một phòng
+      tablesDetails = [tablesDetails]; // Chuyển object thành mảng để xử lý dễ hơn
+    }
+
+    for (const tableDetails of tablesDetails) {
+      const tableId = tableDetails.tableId || tableDetails.TABLE_ID;
+      const table = await Table_Service.getTableById(tableId);
+
+      if (!table) {
+        throw new Error("Bàn không tồn tại.");
+      }
+
+      // Tính số ngày ở
+      const checkInDate = new Date(roomDetails.startDate);
+      const checkOutDate = new Date(roomDetails.endDate);
+      const days = (checkOutDate - checkInDate) / (1000 * 60 * 60 * 24); // Tính số ngày ở
+
+      if (days <= 0) {
+        throw new Error("Ngày trả phòng phải lớn hơn ngày nhận phòng.");
+      }
+
+      // Tính tổng giá cho từng phòng
+      const totalPriceRoom = days * room.PRICE_PERNIGHT;
+
+      // Thêm phòng vào danh sách phòng trong booking
+      listRooms.push({
+        ROOM_ID: roomId,
+        START_DATE: checkInDate,
+        END_DATE: checkOutDate,
+        TOTAL_PRICE_FOR_ROOM: room.PRICE_PERNIGHT,
+      });
+
+      // Cộng tổng giá vào tổng giá booking
+      totalPrice += totalPriceRoom;
+    }
+
+    // Tạo booking mới với thông tin phòng
+    const booking = new BOOKING_MODEL({
+      USER_ID: userId,
+      LIST_ROOMS: listRooms, // Danh sách các phòng đã đặt
+      TOTAL_PRICE: totalPrice, // Tổng giá cho tất cả các phòng
+      STATUS: "NotYetPaid",
+      BOOKING_TYPE: bookingType, // Loại đặt phòng (ví dụ: Website)
+      CUSTOMER_PHONE: roomsDetails[0].CUSTOMER_PHONE, // Thông tin khách hàng (lấy từ phòng đầu tiên)
+      CUSTOMER_NAME: roomsDetails[0].CUSTOMER_NAME,
+      CITIZEN_ID: roomsDetails[0].CITIZEN_ID,
+    });
+
+    // Lưu booking vào database
+    await booking.save();
+
+    return booking;
   }
 }
 

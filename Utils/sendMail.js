@@ -279,7 +279,7 @@ class MailQueue {
             </style>
         </head>
         <body>
-            <center style="width: 100%; background-color: #2b1b17;">
+            <center style="width: 100%; background-color: #34495E;">
                 <div class="email-container">
                     <div class="email-header">
                         <h1>TFOOD-Verify</h1>

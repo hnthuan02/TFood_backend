@@ -1,32 +1,120 @@
 const BookingService = require("../../Services/Booking/Booking.Service");
+const Cart = require("../../Models/Cart/Cart.Model");
+const Booking = require("../../Models//Booking/Booking.Model");
 
 class BookingController {
   // Tạo booking từ giỏ hàng
   async createBookingFromCart(req, res) {
     try {
       const userId = req.user_id; // Lấy userId từ token
-      const { userName, phoneNumber, email } = req.body; // Lấy thông tin người dùng từ frontend
+      const { userName, phoneNumber, email, selectedTables } = req.body; // selectedTables là mảng chứa ID của các bàn được chọn
 
       // Kiểm tra xem các thông tin người dùng đã được cung cấp chưa
-      if (!userName || !phoneNumber || !email) {
+      if (
+        !userName ||
+        !phoneNumber ||
+        !email ||
+        !selectedTables ||
+        !selectedTables.length
+      ) {
         return res.status(400).json({
           success: false,
-          message:
-            "Thiếu thông tin người dùng (USER_NAME, PHONE_NUMBER, EMAIL)",
+          message: "Thiếu thông tin người dùng hoặc bàn được chọn",
         });
       }
 
-      // Tạo booking từ giỏ hàng và thông tin người dùng
-      const booking = await BookingService.createBookingFromCart(
-        userId,
-        userName,
-        phoneNumber,
-        email
+      // Tìm giỏ hàng của người dùng
+      const cart = await Cart.findOne({ USER_ID: userId })
+        .populate({
+          path: "LIST_TABLES.SERVICES.SERVICES_ID",
+          select: "servicePrice", // Lấy giá dịch vụ
+        })
+        .populate({
+          path: "LIST_TABLES.LIST_FOOD.FOOD_ID",
+          select: "PRICE", // Lấy giá món ăn
+        });
+
+      if (!cart) {
+        return res.status(404).json({
+          success: false,
+          message: "Cart is empty.",
+        });
+      }
+
+      // Lọc danh sách các bàn được chọn từ giỏ hàng
+      const selectedTablesData = cart.LIST_TABLES.filter((table) =>
+        selectedTables.includes(table.TABLE_ID.toString())
       );
+
+      if (!selectedTablesData.length) {
+        return res.status(400).json({
+          success: false,
+          message: "Không có bàn nào được chọn.",
+        });
+      }
+
+      // Tính tổng giá cho các bàn được chọn
+      const totalPrice = selectedTablesData.reduce((total, table) => {
+        const totalFoodPrice = table.LIST_FOOD.reduce((foodTotal, food) => {
+          const foodPrice = food.FOOD_ID ? food.FOOD_ID.PRICE : 0;
+          return foodTotal + (foodPrice * food.QUANTITY || 0);
+        }, 0);
+
+        const totalServicePrice = table.SERVICES.reduce(
+          (serviceTotal, service) => {
+            if (service.SERVICES_ID) {
+              return serviceTotal + service.SERVICES_ID.servicePrice;
+            }
+            return serviceTotal;
+          },
+          0
+        );
+
+        return (
+          total + totalFoodPrice + totalServicePrice + (table.TABLE_PRICE || 0)
+        );
+      }, 0);
+
+      // Tạo booking mới từ các bàn được chọn
+      const newBooking = new Booking({
+        USER_ID: userId,
+        USER_NAME: userName,
+        PHONE_NUMBER: phoneNumber,
+        EMAIL: email,
+        LIST_TABLES: selectedTablesData.map((table) => ({
+          TABLE_ID: table.TABLE_ID,
+          BOOKING_TIME: table.BOOKING_TIME,
+          SERVICES: table.SERVICES.map((service) => ({
+            SERVICES_ID: service.SERVICES_ID ? service.SERVICES_ID._id : null,
+          })),
+          LIST_FOOD: table.LIST_FOOD.map((food) => ({
+            FOOD_ID: food.FOOD_ID._id,
+            QUANTITY: food.QUANTITY,
+          })),
+        })),
+        TOTAL_PRICE: totalPrice,
+        STATUS: "NotYetPaid",
+        BOOKING_TYPE: "Website",
+      });
+
+      await newBooking.save();
+
+      // Kiểm tra xem có chọn hết các bàn trong giỏ hàng hay không
+      if (selectedTables.length === cart.LIST_TABLES.length) {
+        // Nếu tất cả các bàn được chọn, xóa toàn bộ giỏ hàng
+        await Cart.findOneAndDelete({ USER_ID: userId });
+      } else {
+        // Nếu không, chỉ xóa các bàn được chọn
+        const remainingTables = cart.LIST_TABLES.filter(
+          (table) => !selectedTables.includes(table.TABLE_ID.toString())
+        );
+        cart.LIST_TABLES = remainingTables;
+        await cart.save();
+      }
 
       return res.status(201).json({
         success: true,
-        data: booking,
+        data: newBooking,
       });
     } catch (error) {
       return res.status(500).json({

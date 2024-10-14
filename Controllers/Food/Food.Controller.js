@@ -75,6 +75,32 @@ class FOOD_CONTROLLER {
       res.status(500).json({ error: error.message });
     }
   }
+
+  async searchFood(req, res) {
+    const searchParams = req.body; // Nhận tham số từ body
+
+    try {
+      const foods = await FOOD_SERVICE.searchFood(searchParams);
+
+      if (!foods.success) {
+        return res.status(400).json({
+          success: false,
+          message: foods.message,
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: foods.data, // Trả về kết quả tìm kiếm
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Error searching foods",
+        error: error.message,
+      });
+    }
+  }
 }
 
 module.exports = new FOOD_CONTROLLER();

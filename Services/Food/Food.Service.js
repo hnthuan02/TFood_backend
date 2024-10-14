@@ -110,6 +110,38 @@ class FOOD_SERVICE {
       throw new Error("Error retrieving foods by criteria");
     }
   }
+
+  async searchFood(searchParams) {
+    const searchValue = searchParams.query; // Lấy giá trị query từ searchParams
+
+    // Kiểm tra nếu không có tham số nào được truyền
+    if (!searchValue) {
+      console.log("Không có tham số tìm kiếm, trả về danh sách rỗng.");
+      return { success: false, message: "Không có tham số tìm kiếm." }; // Trả về object thông báo lỗi
+    }
+
+    const query = {
+      $or: [
+        { NAME: { $regex: new RegExp(searchValue, "i") } }, // Tìm kiếm không phân biệt hoa thường theo TOUR_NAME
+      ],
+    };
+
+    try {
+      const foods = await FOOD_MODEL.find(query).populate({
+        path: "_id",
+        select: "NAME",
+        model: "Food",
+      });
+
+      if (foods.length === 0) {
+        return { success: false, message: "Không tìm thấy món ăn." }; // Trả về object thông báo lỗi
+      }
+
+      return { success: true, data: foods }; // Trả về danh sách các tour tìm thấy
+    } catch (error) {
+      throw new Error("Error searching for tours: " + error.message);
+    }
+  }
 }
 
 module.exports = new FOOD_SERVICE();

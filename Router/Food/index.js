@@ -7,5 +7,6 @@ router.delete("/deleteFood/:foodId", FOOD_CONTROLLER.deleteFood);
 router.get("/allFood", FOOD_CONTROLLER.getAllFoods);
 router.get("/oneFood", FOOD_CONTROLLER.getFoodsByCriteria);
 router.put("/updateFood/:foodId", FOOD_CONTROLLER.updateFood);
+router.post("/search", FOOD_CONTROLLER.searchFood);
 
 module.exports = router;

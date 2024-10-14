@@ -3,7 +3,7 @@ const Schema = mongoose.Schema;
 
 const BookingTimeSchema = new Schema({
   START_TIME: {
-    type: Date,
+    type: String,
     required: true,
   },
   USER_ID: {

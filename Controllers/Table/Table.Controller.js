@@ -155,17 +155,19 @@ class TableController {
       const availableTables = tables.filter((table) => {
         // Lọc các BOOKING_TIMES trong cùng ngày
         const bookingTimesOnSelectedDate = table.BOOKING_TIMES.filter(
-          (booking) => moment(booking).isSame(selectedDate, "day")
+          (booking) => moment(booking.START_TIME).isSame(selectedDate, "day")
         );
 
         // Kiểm tra nếu tất cả các thời gian trong ngày đều cách ít nhất 3 giờ so với selectedBookingTime
-        const isTimeAvailable = bookingTimesOnSelectedDate.every((time) => {
-          const existingTime = moment(time);
-          const diffInHours = Math.abs(
-            existingTime.diff(selectedBookingTime, "hours")
-          );
-          return diffInHours >= 3; // Đảm bảo cách ít nhất 3 giờ
-        });
+        const isTimeAvailable = bookingTimesOnSelectedDate.every(
+          (bookingTimeObj) => {
+            const existingTime = moment(bookingTimeObj.START_TIME);
+            const diffInHours = Math.abs(
+              existingTime.diff(selectedBookingTime, "hours")
+            );
+            return diffInHours >= 3; // Đảm bảo cách ít nhất 3 giờ
+          }
+        );
 
         // Trả về bàn nếu thời gian không trùng với các thời gian đã đặt
         return isTimeAvailable;

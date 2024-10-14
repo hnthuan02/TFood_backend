@@ -7,15 +7,8 @@ const RoleSchema = new Schema(
       type: Boolean,
       default: false,
     },
-    BRANCH_MANAGER: {
-      type: Boolean,
-      default: false,
-    },
+
     STAFF: {
-      type: Boolean,
-      default: false,
-    },
-    SHIPPER: {
       type: Boolean,
       default: false,
     },

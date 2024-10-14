@@ -1,4 +1,3 @@
-const { required } = require("joi");
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
@@ -34,8 +33,11 @@ const BookingSchema = new Schema(
         },
         SERVICES: [
           {
-            serviceName: String,
-            servicePrice: Number,
+            SERVICES_ID: {
+              type: Schema.Types.ObjectId,
+              ref: "ServiceTable", // Đảm bảo rằng đây là tên đúng của model dịch vụ
+              required: false,
+            },
             _id: false,
           },
         ],
@@ -62,18 +64,12 @@ const BookingSchema = new Schema(
     },
     STATUS: {
       type: String,
-      enum: ["pending", "confirmed", "cancelled", "completed"],
-      default: "pending",
+      enum: ["NotYetPaid", "Booked", "CheckedIn", "Canceled", "CheckedOut"],
+      required: false,
     },
-    PAYMENT_STATUS: {
+    BOOKING_TYPE: {
       type: String,
-      enum: ["unpaid", "paid", "deposited"],
-      default: "unpaid",
-    },
-    PAYMENT_METHOD: {
-      type: String,
-      enum: ["banking", "vnpay", "zalopay"],
-      default: "banking",
+      enum: ["Calling", "Email", "Website", "Live"],
     },
   },
   {
