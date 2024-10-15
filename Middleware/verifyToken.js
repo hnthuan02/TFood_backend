@@ -49,6 +49,7 @@ const verifyTokenAdmin = async (req, res, next) => {
     }
 
     const isAdmin = user_info.ROLE.IS_ADMIN;
+    console.log(isAdmin);
     if (!isAdmin) {
       return res.status(403).json({ error: "Access denied. Admins only." });
     }

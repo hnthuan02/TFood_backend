@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const BookingController = require("../../Controllers/Booking/Booking.Controller");
+const authorizeRoles = require("../../Middleware/authorizeRoles");
 const {
   verifyToken,
   verifyTokenAdmin,
@@ -27,4 +28,11 @@ router.put(
   BookingController.updatePaymentStatus
 );
 
+router.post(
+  "/status/completed",
+  verifyToken,
+  authorizeRoles("ADMIN"),
+  BookingController.updateBookingStatusAdmin
+);
+router.get("/total-price", BookingController.getTotalPrice);
 module.exports = router;

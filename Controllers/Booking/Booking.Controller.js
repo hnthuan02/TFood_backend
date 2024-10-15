@@ -186,6 +186,69 @@ class BookingController {
       });
     }
   }
+
+  async updateBookingStatusAdmin(req, res) {
+    try {
+      const { bookingId } = req.body; // Lấy bookingId từ body của request
+
+      if (!bookingId) {
+        return res.status(400).json({
+          success: false,
+          message: "bookingId is required",
+        });
+      }
+
+      // Gọi service để cập nhật trạng thái
+      const updatedBooking = await BookingService.updateBookingAndTableStatus(
+        bookingId
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Booking and Table statuses updated to Completed",
+        data: updatedBooking,
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  async getTotalPrice(req, res) {
+    try {
+      // Sử dụng MongoDB Aggregation để tính tổng TOTAL_PRICE của tất cả bookings
+      const totalPriceData = await Booking.aggregate([
+        {
+          $group: {
+            _id: null, // Không cần nhóm theo trường nào
+            totalPrice: { $sum: "$TOTAL_PRICE" }, // Tính tổng TOTAL_PRICE
+          },
+        },
+      ]);
+
+      // Nếu không có dữ liệu trả về (tức là không có booking nào)
+      if (totalPriceData.length === 0) {
+        return res.status(200).json({
+          success: true,
+          totalPrice: 0,
+        });
+      }
+
+      // Trả về kết quả
+      return res.status(200).json({
+        success: true,
+        totalPrice: totalPriceData[0].totalPrice,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Có lỗi xảy ra khi tính tổng giá trị booking",
+        error: error.message,
+      });
+    }
+  }
 }
 
 module.exports = new BookingController();

@@ -64,7 +64,7 @@ const BookingSchema = new Schema(
     },
     STATUS: {
       type: String,
-      enum: ["NotYetPaid", "Booked", "CheckedIn", "Canceled", "CheckedOut"],
+      enum: ["NotYetPaid", "Booked", "Canceled", "Completed"],
       required: false,
     },
     BOOKING_TYPE: {

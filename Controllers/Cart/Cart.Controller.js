@@ -297,6 +297,28 @@ class CART_CONTROLLER {
       });
     }
   }
+
+  async updateBookingTime(req, res) {
+    try {
+      const { tableId, newBookingTime } = req.body;
+      const userId = req.user_id; // Lấy userId từ token
+      if (!tableId || !newBookingTime) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const updatedCart = await CART_SERVICE.updateBookingTime(
+        userId,
+        tableId,
+        newBookingTime
+      );
+
+      return res
+        .status(200)
+        .json({ message: "Booking time updated successfully", updatedCart });
+    } catch (error) {
+      return res.status(500).json({ message: error.message });
+    }
+  }
 }
 
 module.exports = new CART_CONTROLLER();

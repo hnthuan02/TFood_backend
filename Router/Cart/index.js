@@ -26,5 +26,10 @@ router.post(
 );
 router.post("/addServiceToCart", verifyToken, CART_CONTROLLER.addServiceToCart);
 router.put("/updateService", CART_CONTROLLER.updateServiceInCart);
+router.put(
+  "/updateBookingTime",
+  verifyToken,
+  CART_CONTROLLER.updateBookingTime
+);
 
 module.exports = router;

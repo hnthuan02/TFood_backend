@@ -158,6 +158,15 @@ class TableController {
           (booking) => moment(booking.START_TIME).isSame(selectedDate, "day")
         );
 
+        // Kiểm tra nếu bàn có `STATUS` là "Completed", bỏ qua kiểm tra thời gian và coi như bàn đó khả dụng
+        const isCompleted = bookingTimesOnSelectedDate.some(
+          (bookingTimeObj) => bookingTimeObj.STATUS === "Completed"
+        );
+
+        if (isCompleted) {
+          return true; // Bỏ qua các kiểm tra khác, vì bàn có `STATUS` là "Completed"
+        }
+
         // Kiểm tra nếu tất cả các thời gian trong ngày đều cách ít nhất 3 giờ so với selectedBookingTime
         const isTimeAvailable = bookingTimesOnSelectedDate.every(
           (bookingTimeObj) => {

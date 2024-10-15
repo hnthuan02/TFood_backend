@@ -6,6 +6,11 @@ const BookingTimeSchema = new Schema({
     type: String,
     required: true,
   },
+  STATUS: {
+    type: String,
+    enum: ["Completed"],
+    required: true,
+  },
   USER_ID: {
     type: Schema.Types.ObjectId,
     ref: "User",

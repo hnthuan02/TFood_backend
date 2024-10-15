@@ -84,12 +84,17 @@ class BookingService {
         .populate({
           path: "LIST_TABLES.TABLE_ID",
           model: "Table", // Model của bảng `Table`
-          select: "TABLE_NUMBER PRICE CAPACITY DESCRIPTION", // Các trường bạn muốn hiển thị từ `Table`
+          select: "TABLE_NUMBER PRICE CAPACITY DESCRIPTION IMAGES", // Các trường bạn muốn hiển thị từ `Table`
         })
         .populate({
           path: "LIST_TABLES.LIST_FOOD.FOOD_ID",
           model: "Food", // Model của bảng `Food`
           select: "NAME PRICE", // Các trường bạn muốn hiển thị từ `Food`
+        })
+        .populate({
+          path: "LIST_TABLES.SERVICES.SERVICES_ID",
+          model: "ServiceTable", // Model của bảng `Food`
+          select: "serviceName servicePrice", // Các trường bạn muốn hiển thị từ `Food`
         });
     } catch (error) {
       throw new Error("Error fetching bookings: " + error.message);
@@ -242,6 +247,45 @@ class BookingService {
     await booking.save();
 
     return booking;
+  }
+
+  async updateBookingAndTableStatus(bookingId) {
+    try {
+      // Tìm Booking theo ID
+      const booking = await Booking.findById(bookingId).populate(
+        "LIST_TABLES.TABLE_ID"
+      );
+
+      if (!booking) {
+        throw new Error("Booking not found");
+      }
+
+      // Cập nhật STATUS của Booking thành Completed
+      booking.STATUS = "Completed";
+      await booking.save();
+
+      // Cập nhật STATUS của tất cả các bàn trong LIST_TABLES
+      for (const tableInfo of booking.LIST_TABLES) {
+        const { TABLE_ID, BOOKING_TIME } = tableInfo;
+        const userId = booking.USER_ID;
+
+        // Tìm và cập nhật STATUS của Table theo BOOKING_TIME và USER_ID
+        await Table.updateOne(
+          {
+            _id: TABLE_ID,
+            "BOOKING_TIMES.START_TIME": BOOKING_TIME,
+            "BOOKING_TIMES.USER_ID": userId,
+          },
+          { $set: { "BOOKING_TIMES.$.STATUS": "Completed" } }
+        );
+      }
+
+      return booking; // Trả về thông tin Booking sau khi cập nhật
+    } catch (error) {
+      throw new Error(
+        `Error updating booking and table status: ${error.message}`
+      );
+    }
   }
 }
 

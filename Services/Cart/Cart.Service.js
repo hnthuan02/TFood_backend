@@ -832,6 +832,50 @@ class CART_SERVICE {
     await cart.save();
     return cart;
   }
+
+  async updateBookingTime(userId, tableId, newBookingTime) {
+    try {
+      const table = await TABLE_MODEL.findById(tableId);
+      if (!table) {
+        throw new Error("Table not found");
+      }
+      // Kiểm tra sự tồn tại của giỏ hàng
+      const cart = await CART_MODEL.findOne({ USER_ID: userId });
+      if (!cart) {
+        throw new Error("Cart not found for this user");
+      }
+
+      // Kiểm tra sự tồn tại của TABLE_ID trong LIST_TABLES
+      const tableInCart = cart.LIST_TABLES.find(
+        (tableItem) => tableItem.TABLE_ID.toString() === tableId
+      );
+      if (!tableInCart) {
+        throw new Error("Table not found in the cart");
+      }
+
+      // Kiểm tra chênh lệch thời gian với các BOOKING_TIMES đã tồn tại
+      const newTime = new Date(newBookingTime);
+
+      for (let booking of table.BOOKING_TIMES) {
+        const existingTime = new Date(booking.START_TIME);
+        const timeDifference = Math.abs(newTime - existingTime) / 36e5; // Chênh lệch thời gian tính bằng giờ
+
+        if (timeDifference < 3) {
+          throw new Error(
+            "Booking time must have at least 3 hours difference from existing bookings"
+          );
+        }
+      }
+
+      // Nếu kiểm tra hợp lệ, cập nhật booking time cho cart
+      tableInCart.BOOKING_TIME = newBookingTime;
+      await cart.save();
+
+      return cart;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  }
 }
 
 module.exports = new CART_SERVICE();
