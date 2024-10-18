@@ -144,19 +144,24 @@ class MailQueue {
     let message;
     if (otpType === "create_account") {
       message = `
-            <h2>To finish registration, confirm your email address by using this code:</h2>
+            <h2>Để hoàn thành đăng ký, xác nhận địa chỉ email bằng mã otp sau:</h2>
             <p style="font-size: 24px; font-weight: bold; color: #FAE8B2;">${otp}</p>
         `;
     } else if (otpType === "reset_password") {
       message = `
-            <h2>To reset your password, use this code:</h2>
+            <h2>Để đặt lại mật khẩu, sử dụng mã otp sau:</h2>
             <p style="font-size: 24px; font-weight: bold; color: #FAE8B2;">${otp}</p>
         `;
     } else if (otpType === "edit_account") {
       message = `
-            <h2>To edit your account, use this code:</h2>
+            <h2>Để thay đổi email, sử dụng mã otp sau:</h2>
             <p style="font-size: 24px; font-weight: bold; color: #FAE8B2;">${otp}</p>
         `;
+    } else if (otpType === "booking") {
+      message = `
+              <h2>To edit your account, use this code:</h2>
+              <p style="font-size: 24px; font-weight: bold; color: #FAE8B2;">${otp}</p>
+          `;
     } else {
       message = `
             <h2>Here is your OTP code:</h2>

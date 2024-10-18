@@ -102,17 +102,17 @@ class BookingService {
   }
 
   // Cập nhật trạng thái booking
-  async updateBookingStatus(bookingId, status) {
-    try {
-      return await Booking.findByIdAndUpdate(
-        bookingId,
-        { STATUS: status },
-        { new: true }
-      );
-    } catch (error) {
-      throw new Error("Error updating booking status: " + error.message);
-    }
-  }
+  // async updateBookingStatus(bookingId, status) {
+  //   try {
+  //     return await Booking.findByIdAndUpdate(
+  //       bookingId,
+  //       { STATUS: status },
+  //       { new: true }
+  //     );
+  //   } catch (error) {
+  //     throw new Error("Error updating booking status: " + error.message);
+  //   }
+  // }
 
   // Cập nhật trạng thái thanh toán
   async updatePaymentStatus(bookingId, paymentStatus) {
@@ -178,11 +178,14 @@ class BookingService {
           START_TIME: bookingTime,
           USER_ID: user_id,
         });
+      } else {
+        console.log("Thời gian đã được đặt trước:", bookingTime);
       }
 
       // Lưu các thay đổi
       await table.save();
     } catch (error) {
+      console.error("Có lỗi xảy ra khi cập nhật bàn:", error);
       throw new Error(`Có lỗi xảy ra khi cập nhật bàn: ${error.message}`);
     }
   }
@@ -269,14 +272,25 @@ class BookingService {
         const { TABLE_ID, BOOKING_TIME } = tableInfo;
         const userId = booking.USER_ID;
 
-        // Tìm và cập nhật STATUS của Table theo BOOKING_TIME và USER_ID
+        const formattedBookingTime =
+          moment(BOOKING_TIME).format("YYYY-MM-DD HH:mm");
+
+        // Sử dụng toán tử arrayFilters với toán tử $[<identifier>]
         await Table.updateOne(
           {
             _id: TABLE_ID,
-            "BOOKING_TIMES.START_TIME": BOOKING_TIME,
-            "BOOKING_TIMES.USER_ID": userId,
           },
-          { $set: { "BOOKING_TIMES.$.STATUS": "Completed" } }
+          {
+            $set: { "BOOKING_TIMES.$[elem].STATUS": "Completed" },
+          },
+          {
+            arrayFilters: [
+              {
+                "elem.START_TIME": formattedBookingTime,
+                "elem.USER_ID": userId,
+              },
+            ],
+          }
         );
       }
 
@@ -285,6 +299,91 @@ class BookingService {
       throw new Error(
         `Error updating booking and table status: ${error.message}`
       );
+    }
+  }
+
+  async getAllBookings() {
+    try {
+      await this.updateAllBookingsStatus();
+      // Sử dụng populate để lấy dữ liệu liên kết từ các bảng khác (User, Table, ServiceTable, Food)
+      const bookings = await Booking.find()
+        .populate("USER_ID", "FULLNAME EMAIL") // Populate user information
+        .populate("LIST_TABLES.TABLE_ID", "TABLE_NUMBER") // Populate table information
+        .populate("LIST_TABLES.SERVICES.SERVICES_ID", "serviceName") // Populate services
+        .populate("LIST_TABLES.LIST_FOOD.FOOD_ID", "NAME PRICE"); // Populate food details
+
+      return bookings;
+    } catch (error) {
+      throw new Error("Error while retrieving bookings: " + error.message);
+    }
+  }
+  async getTablesInBookingWithTime(bookingId) {
+    // Tìm booking theo ID và populate các thông tin về Table trong LIST_TABLES
+    const booking = await Booking.findById(bookingId).populate(
+      "LIST_TABLES.TABLE_ID"
+    );
+
+    if (!booking) return null;
+
+    // Lọc các bảng và chỉ giữ lại thông tin TABLE_ID, BOOKING_TIME và STATUS phù hợp
+    const tablesWithMatchingTime = booking.LIST_TABLES.map((tableInfo) => {
+      const { TABLE_ID, BOOKING_TIME } = tableInfo;
+      const tableDetails = TABLE_ID.BOOKING_TIMES.find(
+        (bookingTime) => bookingTime.START_TIME === BOOKING_TIME
+      );
+
+      // Nếu tìm thấy tableDetails, lấy STATUS, nếu không thì gán là "Pending"
+      const status = tableDetails ? tableDetails.STATUS : "Pending";
+
+      // Lọc chỉ lấy các thông tin cần thiết
+      return {
+        TABLE_ID: TABLE_ID._id,
+        BOOKING_TIME: BOOKING_TIME, // Lấy thời gian booking từ LIST_TABLES
+        TABLE_NUMBER: TABLE_ID.TABLE_NUMBER,
+        STATUS: status, // Trả về STATUS
+      };
+    });
+
+    return tablesWithMatchingTime;
+  }
+
+  async updateAllBookingsStatus() {
+    try {
+      // Lấy tất cả các booking
+      const bookings = await Booking.find().populate("LIST_TABLES.TABLE_ID");
+
+      for (const booking of bookings) {
+        // Lấy danh sách các tables từ LIST_TABLES trong booking
+        const tables = booking.LIST_TABLES;
+
+        // Kiểm tra trạng thái của từng table
+        const allCompleted = await Promise.all(
+          tables.map(async (table) => {
+            const tableDetails = await Table.findById(table.TABLE_ID);
+
+            // Kiểm tra từng thời gian đặt trong BOOKING_TIMES
+            const isCompleted = tableDetails.BOOKING_TIMES.some(
+              (bookingTime) =>
+                bookingTime.START_TIME === table.BOOKING_TIME &&
+                bookingTime.STATUS === "Completed"
+            );
+
+            return isCompleted;
+          })
+        );
+
+        // Nếu tất cả các table đều có status là Completed, cập nhật STATUS của booking
+        if (allCompleted.every((status) => status)) {
+          booking.STATUS = "Completed";
+          await booking.save();
+          console.log(`Booking ${booking._id} status updated to Completed`);
+        } else {
+          booking.STATUS = "Booked";
+          await booking.save();
+        }
+      }
+    } catch (error) {
+      console.error("Error updating booking statuses:", error.message);
     }
   }
 }

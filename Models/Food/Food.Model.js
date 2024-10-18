@@ -21,18 +21,7 @@ const foodSchema = new mongoose.Schema(
     IMAGES: {
       type: [String],
     },
-    AVAILABILITY: {
-      type: Boolean,
-      required: true,
-    },
-    NEWEST: {
-      type: Boolean,
-      required: false,
-    },
-    BEST: {
-      type: Boolean,
-      required: false,
-    },
+
     IS_DELETED: {
       type: Boolean,
       required: false,

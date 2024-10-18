@@ -249,6 +249,35 @@ class BookingController {
       });
     }
   }
+
+  async getAllBookings(req, res) {
+    try {
+      const bookings = await BookingService.getAllBookings();
+      res.status(200).json({
+        success: true,
+        data: bookings,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Error retrieving bookings",
+        error: error.message,
+      });
+    }
+  }
+
+  async getTablesInBookingWithTime(req, res) {
+    const { id } = req.params; // Lấy bookingId từ params
+
+    const tables = await BookingService.getTablesInBookingWithTime(id);
+
+    if (!tables) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    // Trả về thông tin tables với thời gian booking
+    return res.status(200).json({ success: true, data: tables });
+  }
 }
 
 module.exports = new BookingController();

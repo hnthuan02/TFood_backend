@@ -8,8 +8,7 @@ const BookingTimeSchema = new Schema({
   },
   STATUS: {
     type: String,
-    enum: ["Completed"],
-    required: true,
+    required: false,
   },
   USER_ID: {
     type: Schema.Types.ObjectId,
@@ -80,11 +79,6 @@ TableSchema.pre("save", async function (next) {
     } catch (error) {
       return next(error);
     }
-  }
-
-  // Tính tiền cọc 30%
-  if (this.PRICE) {
-    this.DEPOSIT = this.PRICE * 0.3;
   }
 
   next();

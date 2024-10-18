@@ -21,15 +21,17 @@ class FOOD_SERVICE {
   async createFood(body) {
     try {
       let uploadedImages = []; // Đảm bảo biến được định nghĩa trước
+      console.log("Uploaded images:", uploadedImages);
+
       if (body.IMAGES && body.IMAGES.length > 0) {
         uploadedImages = await Promise.all(
           body.IMAGES.map(async (image) => {
             // Kiểm tra nếu là URL hoặc file path cục bộ
-            if (image.startsWith("http")) {
+            if (typeof image === "string" && image.startsWith("http")) {
               // Upload từ URL
               const uploadResult = await CLOUDINARY.uploader.upload(image);
               return uploadResult.secure_url;
-            } else {
+            } else if (image.path) {
               // Upload từ file cục bộ
               const uploadResult = await CLOUDINARY.uploader.upload(image.path);
               return uploadResult.secure_url;
@@ -61,19 +63,33 @@ class FOOD_SERVICE {
   }
 
   // Cập nhật thông tin món ăn, bao gồm URL của ảnh
-  async updateFood(foodId, updateData) {
-    try {
-      const result = await FOOD_MODEL.findByIdAndUpdate(foodId, updateData, {
-        new: true,
-      });
-      if (!result) {
-        throw new Error("Food not found");
-      }
-      return result;
-    } catch (error) {
-      console.error("Error updating food:", error);
-      throw new Error("Error updating food");
+  async updateFood(id, foodData) {
+    let uploadedImages = [];
+
+    if (foodData.IMAGES && foodData.IMAGES.length > 0) {
+      uploadedImages = await Promise.all(
+        foodData.IMAGES.map(async (image) => {
+          if (typeof image === "string" && image.startsWith("http")) {
+            // Nếu là URL thì giữ nguyên
+            return image;
+          } else if (image.path) {
+            // Nếu là file cục bộ, upload lên Cloudinary
+            const uploadResult = await CLOUDINARY.uploader.upload(image.path);
+            return uploadResult.secure_url;
+          }
+        })
+      );
+      // Gán danh sách ảnh đã upload vào trường IMAGES trong foodData
+      foodData.IMAGES = uploadedImages;
     }
+    const updateFood = await FOOD_MODEL.findByIdAndUpdate(
+      id,
+      {
+        ...foodData,
+      },
+      { new: true }
+    );
+    return updateFood;
   }
 
   // Lấy toàn bộ món ăn

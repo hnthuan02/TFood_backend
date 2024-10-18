@@ -35,4 +35,6 @@ router.post(
   BookingController.updateBookingStatusAdmin
 );
 router.get("/total-price", BookingController.getTotalPrice);
+router.get("/allBookings", BookingController.getAllBookings);
+router.get("/:id/tables", BookingController.getTablesInBookingWithTime);
 module.exports = router;

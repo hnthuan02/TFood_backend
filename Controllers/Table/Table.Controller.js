@@ -274,6 +274,15 @@ class TableController {
       });
     }
   }
+  async getAllTablesAdmin(req, res) {
+    try {
+      const tables = await Table.find({ IS_DELETED: false }); // Lấy tất cả bàn chưa bị xóa
+      return res.status(200).json(tables); // Trả về danh sách bàn
+    } catch (error) {
+      console.error("Lỗi khi lấy danh sách bàn:", error);
+      return res.status(500).json({ message: "Lỗi khi lấy danh sách bàn." });
+    }
+  }
 }
 
 module.exports = new TableController();

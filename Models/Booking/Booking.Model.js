@@ -35,7 +35,7 @@ const BookingSchema = new Schema(
           {
             SERVICES_ID: {
               type: Schema.Types.ObjectId,
-              ref: "ServiceTable", // Đảm bảo rằng đây là tên đúng của model dịch vụ
+              ref: "ServiceTable",
               required: false,
             },
             _id: false,
