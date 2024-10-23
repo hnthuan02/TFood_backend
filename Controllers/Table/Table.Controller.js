@@ -153,12 +153,27 @@ class TableController {
 
       // Lọc các bàn có sẵn, không bị trùng giờ trong cùng ngày với khoảng cách 3 giờ
       const availableTables = tables.filter((table) => {
-        // Lọc các BOOKING_TIMES trong cùng ngày
-        const bookingTimesOnSelectedDate = table.BOOKING_TIMES.filter(
-          (booking) => moment(booking.START_TIME).isSame(selectedDate, "day")
+        // Chuyển đổi selectedDate và selectedBookingTime sang đối tượng moment với định dạng chính xác
+        const selectedMomentDate = moment(selectedDate, "YYYY-MM-DD", true);
+        const selectedMomentBookingTime = moment(
+          selectedBookingTime,
+          "YYYY-MM-DD HH:mm",
+          true
         );
 
-        // Kiểm tra nếu bàn có `STATUS` là "Completed", bỏ qua kiểm tra thời gian và coi như bàn đó khả dụng
+        // Lọc các BOOKING_TIMES trong cùng ngày
+        const bookingTimesOnSelectedDate = table.BOOKING_TIMES.filter(
+          (booking) => {
+            const bookingStartTime = moment(
+              booking.START_TIME,
+              "YYYY-MM-DD HH:mm",
+              true
+            );
+            return bookingStartTime.isSame(selectedMomentDate, "day");
+          }
+        );
+
+        // Kiểm tra nếu bàn có `STATUS` là "Completed"
         const isCompleted = bookingTimesOnSelectedDate.some(
           (bookingTimeObj) => bookingTimeObj.STATUS === "Completed"
         );
@@ -167,18 +182,21 @@ class TableController {
           return true; // Bỏ qua các kiểm tra khác, vì bàn có `STATUS` là "Completed"
         }
 
-        // Kiểm tra nếu tất cả các thời gian trong ngày đều cách ít nhất 3 giờ so với selectedBookingTime
+        // Kiểm tra thời gian trùng lặp
         const isTimeAvailable = bookingTimesOnSelectedDate.every(
           (bookingTimeObj) => {
-            const existingTime = moment(bookingTimeObj.START_TIME);
+            const existingTime = moment(
+              bookingTimeObj.START_TIME,
+              "YYYY-MM-DD HH:mm",
+              true
+            );
             const diffInHours = Math.abs(
-              existingTime.diff(selectedBookingTime, "hours")
+              existingTime.diff(selectedMomentBookingTime, "hours")
             );
             return diffInHours >= 3; // Đảm bảo cách ít nhất 3 giờ
           }
         );
 
-        // Trả về bàn nếu thời gian không trùng với các thời gian đã đặt
         return isTimeAvailable;
       });
 
@@ -190,7 +208,7 @@ class TableController {
 
   async updateTable(req, res) {
     try {
-      const tableId = req.params.id;
+      const tableId = req.params.tableId;
       const updateData = req.body;
       const updatedTable = await TableService.updateTable(tableId, updateData);
       res.status(200).json({ success: true, data: updatedTable });
@@ -201,7 +219,7 @@ class TableController {
 
   async deleteTable(req, res) {
     try {
-      const tableId = req.params.id;
+      const tableId = req.params.tableId;
       const deletedTable = await TableService.deleteTable(tableId);
       res.status(200).json({ success: true, data: deletedTable });
     } catch (error) {
@@ -281,6 +299,31 @@ class TableController {
     } catch (error) {
       console.error("Lỗi khi lấy danh sách bàn:", error);
       return res.status(500).json({ message: "Lỗi khi lấy danh sách bàn." });
+    }
+  }
+
+  async updateBookingTimeStatus(req, res) {
+    const { tableId, startTime } = req.body; // Nhận dữ liệu từ body
+
+    if (!tableId || !startTime) {
+      return res.status(400).json({ message: "Thiếu tableId hoặc startTime." });
+    }
+
+    try {
+      // Gọi service để cập nhật STATUS
+      const updatedTable = await TableService.updateBookingTimeStatus(
+        tableId,
+        startTime
+      );
+
+      res.status(200).json({
+        message: "Cập nhật trạng thái thành công.",
+        data: updatedTable,
+      });
+    } catch (error) {
+      res
+        .status(500)
+        .json({ message: `Lỗi khi cập nhật trạng thái: ${error.message}` });
     }
   }
 }

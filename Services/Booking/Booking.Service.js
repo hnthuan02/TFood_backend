@@ -2,7 +2,9 @@ const Booking = require("../../Models/Booking/Booking.Model");
 const Cart = require("../../Models/Cart/Cart.Model");
 const Table = require("../../Models/Table/Table.Model");
 const Table_Service = require("../../Services/Table/Table.Service");
+const USER_MODEL = require("../../Models/User/User.Model");
 const moment = require("moment");
+const MAIL_QUEUE = require("../../Utils/sendMail");
 
 class BookingService {
   async createBookingFromCart(userId, userName, phoneNumber, email) {
@@ -133,6 +135,11 @@ class BookingService {
       const booking = await Booking.findById(bookingId);
       if (!booking) throw new Error("Không tìm thấy đơn đặt bàn");
 
+      // Lấy thông tin người dùng dựa trên USER_ID từ booking
+      const user = await USER_MODEL.findById(booking.USER_ID);
+      if (!user || !user.EMAIL)
+        throw new Error("Không tìm thấy người dùng hoặc email không tồn tại");
+
       // Cập nhật trạng thái của đơn đặt phòng
       booking.STATUS = status;
       await booking.save();
@@ -146,10 +153,54 @@ class BookingService {
         );
       }
 
+      // Gửi email xác nhận nếu trạng thái là 'Booked'
+      if (status === "Booked") {
+        const emailContent = `
+  <div style="max-width: 600px; margin: auto; font-family: Arial, sans-serif; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+    <!-- Header -->
+    <div style="background-color: #34495E; color: #fff; padding: 20px; text-align: center;">
+      <h1 style="margin: 0; font-size: 24px;">TFood</h1>
+    </div>
+    <!-- Body -->
+    <div style="padding: 20px; background-color: #f8f9fa;">
+      <h2 style="color: #34495E; font-size: 22px;">Xin chào ${user.FULLNAME},</h2>
+      <p style="color: #555; font-size: 16px;">Chúc mừng bạn đã đặt phòng thành công với mã đơn hàng <strong>${bookingId}</strong>. Chi tiết đơn hàng như sau:</p>
+      <div style="background-color: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; margin: 20px 0;">
+        <ul style="list-style: none; padding: 0; color: #34495E;">
+          <li style="margin-bottom: 10px; font-size: 16px;">
+            <strong>Tên khách hàng:</strong> ${booking.USER_NAME}
+          </li>
+          <li style="margin-bottom: 10px; font-size: 16px;">
+            <strong>Thời gian đặt phòng:</strong> ${booking.LIST_TABLES[0].BOOKING_TIME}
+          </li>
+          <li style="font-size: 16px;">
+            <strong>Tổng tiền:</strong> ${booking.TOTAL_PRICE} VND
+          </li>
+        </ul>
+      </div>
+      <p style="color: #555; font-size: 16px;">Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi!</p>
+    </div>
+    <!-- Footer -->
+    <div style="background-color: #34495E; color: #fff; padding: 10px; text-align: center;">
+      <p style="margin: 0; font-size: 14px;">&copy; 2024 TFood. All rights reserved.</p>
+    </div>
+  </div>
+`;
+
+        // Đưa email vào hàng đợi
+        await MAIL_QUEUE.enqueue({
+          email: user.EMAIL,
+          otp: "", // Không cần OTP cho xác nhận booking
+          otpType: "BookingConfirmation",
+          content: emailContent,
+        });
+      }
+
       return {
         statusCode: 200,
         msg: `Trạng thái booking đã được cập nhật thành ${status}`,
         data: booking,
+        user,
       };
     } catch (error) {
       return {
@@ -320,7 +371,7 @@ class BookingService {
   async getTablesInBookingWithTime(bookingId) {
     // Tìm booking theo ID và populate các thông tin về Table trong LIST_TABLES
     const booking = await Booking.findById(bookingId).populate(
-      "LIST_TABLES.TABLE_ID"
+      "LIST_TABLES.TABLE_ID USER_ID"
     );
 
     if (!booking) return null;
@@ -334,12 +385,14 @@ class BookingService {
 
       // Nếu tìm thấy tableDetails, lấy STATUS, nếu không thì gán là "Pending"
       const status = tableDetails ? tableDetails.STATUS : "Pending";
+      const userId = tableDetails ? tableDetails.USER_ID : null;
 
       // Lọc chỉ lấy các thông tin cần thiết
       return {
         TABLE_ID: TABLE_ID._id,
         BOOKING_TIME: BOOKING_TIME, // Lấy thời gian booking từ LIST_TABLES
         TABLE_NUMBER: TABLE_ID.TABLE_NUMBER,
+        USER_ID: userId, //
         STATUS: status, // Trả về STATUS
       };
     });
@@ -376,7 +429,6 @@ class BookingService {
         if (allCompleted.every((status) => status)) {
           booking.STATUS = "Completed";
           await booking.save();
-          console.log(`Booking ${booking._id} status updated to Completed`);
         } else {
           booking.STATUS = "Booked";
           await booking.save();

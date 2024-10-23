@@ -160,7 +160,8 @@ class USER_SERVICE {
     switch (tabStatus) {
       case "1":
         query = {
-          $or: [{ IS_ACTIVATED: false }, { "IS_BLOCKED.CHECK": { $ne: true } }],
+          IS_ACTIVATED: false,
+          "IS_BLOCKED.CHECK": { $ne: true },
         };
         break;
       case "2":

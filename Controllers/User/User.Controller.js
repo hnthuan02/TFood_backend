@@ -161,6 +161,13 @@ class USER_CONTROLLER {
         payload.PHONE_NUMBER
       );
 
+      if (user.IS_BLOCKED != null && user.IS_BLOCKED.CHECK === true) {
+        return res.status(404).json({
+          success: false,
+          message: "Bạn đã bị chặn.",
+        });
+      }
+
       if (!user) {
         return res.status(404).json({
           success: false,

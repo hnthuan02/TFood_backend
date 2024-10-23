@@ -6,7 +6,7 @@ const cloudinary = require("./cloudinaryConfig"); // Đường dẫn tới file 
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: "hotel_images", // Thư mục trên Cloudinary
+    folder: "Tfood_images", // Thư mục trên Cloudinary
     allowed_formats: ["jpg", "png", "jpeg", "gif", "webp"], // Các định dạng được phép
     public_id: (req, file) => `${Date.now()}-${file.originalname}`,
   },
