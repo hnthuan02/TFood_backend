@@ -8,6 +8,7 @@ const bookingRouter = require("./Booking");
 const serviceTableRouter = require("./ServiceTable");
 const paymentRouter = require("./PaymentVNPay");
 const reviewRouter = require("./Review");
+const messageRouter = require("./Message");
 
 function route(app) {
   app.use("/users", userRouter);
@@ -19,6 +20,7 @@ function route(app) {
   app.use("/serviceTables", serviceTableRouter);
   app.use("/payments", paymentRouter);
   app.use("/reviews", reviewRouter);
+  app.use("/messages", messageRouter);
 }
 
 module.exports = route;

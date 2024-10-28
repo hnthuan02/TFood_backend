@@ -15,12 +15,7 @@ router.post("/resetPassword", USER_CONTROLLER.resetPassword);
 router.post("/loginUser", USER_CONTROLLER.login);
 router.put("/editUser", verifyToken, USER_CONTROLLER.editUser);
 router.post("/logout", USER_CONTROLLER.logout);
-router.get(
-  "/getAllUsers",
-  verifyToken,
-  authorizeRoles("ADMIN", "BRANCH_MANAGER", "STAFF"),
-  USER_CONTROLLER.getUsers
-);
+router.get("/getAllUsers", verifyToken, USER_CONTROLLER.getUsers);
 router.post(
   "/blockUser",
   verifyToken,
