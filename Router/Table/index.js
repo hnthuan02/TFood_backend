@@ -13,5 +13,8 @@ router.get("/available-dates", TABLE_CONTROLLER.getAvailableDates);
 router.get("/available-by-date", TABLE_CONTROLLER.getAvailableTablesByDate);
 router.get("/tables", TABLE_CONTROLLER.getAllTablesAdmin);
 router.post("/booking-times/status", TABLE_CONTROLLER.updateBookingTimeStatus);
+router.get("/all-tables-with-status", TABLE_CONTROLLER.getAllTablesWithStatus);
+router.get("/count-start-time", TABLE_CONTROLLER.getTotalStartTime);
+router.get("/total-start-times", TABLE_CONTROLLER.getTotalStartTimes);
 
 module.exports = router;

@@ -1,13 +1,13 @@
 const cron = require("node-cron");
-const RESTAURANT_MODEL = require("../Models/Restaurant/Restaurant.Model");
+const tableService = require("../Services/Table/Table.Service");
 
+// Chạy cron job mỗi giờ
 cron.schedule("0 * * * *", async () => {
   try {
-    const currentHour = new Date().getHours();
-    const newState = currentHour >= 7 && currentHour < 22 ? "Open" : "Close";
-    await RESTAURANT_MODEL.updateMany({}, { STATE: newState });
-    console.log(`Restaurants updated to ${newState}`);
+    await tableService.updateBookingTimeStatusIfOverdue();
+
+    console.log("Đã cập nhật trạng thái booking time quá hạn.");
   } catch (error) {
-    console.error(`Error updating restaurants: ${error.message}`);
+    console.error("Lỗi khi chạy cron job:", error.message);
   }
 });

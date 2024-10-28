@@ -326,6 +326,89 @@ class TableController {
         .json({ message: `Lỗi khi cập nhật trạng thái: ${error.message}` });
     }
   }
+
+  async checkAndUpdateBookingTimeStatus(req, res) {
+    try {
+      const result = await tableService.updateBookingTimeStatusIfOverdue();
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  async getAllTablesWithStatus(req, res) {
+    try {
+      // Lấy toàn bộ danh sách bàn
+      const tables = await TableService.getAllTables();
+
+      // Lấy thời gian hiện tại
+      const currentTime = moment();
+
+      // Duyệt qua từng bàn để xác định trạng thái
+      const tablesWithStatus = tables.map((table) => {
+        let status = "Đang trống"; // Mặc định là Đang trống
+
+        // Duyệt qua từng thời gian đặt để kiểm tra trạng thái
+        for (let bookingTime of table.BOOKING_TIMES) {
+          const startTime = moment(bookingTime.START_TIME, "YYYY-MM-DD HH:mm");
+          const hoursDiff = currentTime.diff(startTime, "hours");
+          console.log(hoursDiff);
+
+          // Kiểm tra trạng thái dựa trên sự khác biệt về giờ
+          if (
+            startTime.isSame(currentTime, "minute") ||
+            (hoursDiff > 0 && hoursDiff < 3)
+          ) {
+            status = "Đang có khách";
+            break; // Nếu đã tìm thấy trạng thái Đang có khách, không cần kiểm tra thêm
+          } else if (
+            startTime.isAfter(currentTime) &&
+            hoursDiff > -3 &&
+            hoursDiff <= 0
+          ) {
+            status = "Sắp có khách";
+          }
+        }
+
+        // Thêm trường trạng thái vào kết quả trả về
+        return {
+          ...table,
+          CURRENT: status,
+        };
+      });
+
+      // Trả về kết quả với trạng thái của từng bàn
+      return res.status(200).json({
+        success: true,
+        data: tablesWithStatus,
+      });
+    } catch (error) {
+      console.error("Lỗi khi lấy danh sách bàn:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Lỗi khi lấy danh sách bàn.",
+      });
+    }
+  }
+
+  async getTotalStartTime(req, res) {
+    try {
+      const totalStartTime = await TableService.countTotalStartTime();
+      return res.json({ success: true, totalStartTime });
+    } catch (error) {
+      return res.status(500).json({ success: false, msg: error.message });
+    }
+  }
+
+  async getTotalStartTimes(req, res) {
+    try {
+      const totalStartTimes = await TableService.countStartTimesForAllTables();
+      return res.json({ success: true, data: totalStartTimes });
+    } catch (error) {
+      console.error("Lỗi khi lấy tổng START_TIME:", error);
+      return res.status(500).json({ success: false, msg: error.message });
+    }
+  }
 }
 
 module.exports = new TableController();

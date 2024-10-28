@@ -1,28 +1,28 @@
 const mongoose = require("mongoose");
+const Schema = mongoose.Schema;
 
-const reviewSchema = new mongoose.Schema(
+const ReviewSchema = new Schema(
   {
-    review_Id: {
-      type: mongoose.Schema.Types.ObjectId,
-      required: true,
-    },
     USER_ID: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
+      ref: "User",
       required: true,
     },
-    ORDER_ID: {
-      type: mongoose.Schema.Types.ObjectId,
+    BOOKING_ID: {
+      type: Schema.Types.ObjectId,
       required: true,
     },
-    FOOD_ID: {
-      type: mongoose.Schema.Types.ObjectId,
-      required: true,
-    },
-    RATING: {
+    RATING_FOOD: {
       type: Number,
-      required: true,
       min: 1,
       max: 5,
+      required: true,
+    },
+    RATING_SERVICE: {
+      type: Number,
+      min: 1,
+      max: 5,
+      required: true,
     },
     COMMENT: {
       type: String,
@@ -31,21 +31,13 @@ const reviewSchema = new mongoose.Schema(
       type: Boolean,
       required: true,
     },
-    CREATE_AT: {
-      type: Date,
-      required: true,
-      default: Date.now,
-    },
-    UPDATE_AT: {
-      type: Date,
-      required: true,
-      default: Date.now,
-    },
   },
   {
-    timestamps: { createdAt: "CREATE_AT", updatedAt: "UPDATE_AT" },
     versionKey: false,
+    timestamps: true,
   }
 );
 
-module.exports = mongoose.model("Review", reviewSchema);
+const Review = mongoose.model("Review", ReviewSchema);
+
+module.exports = Review;
