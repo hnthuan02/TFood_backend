@@ -37,4 +37,5 @@ router.post(
 router.get("/total-price", BookingController.getTotalPrice);
 router.get("/allBookings", BookingController.getAllBookings);
 router.get("/:id/tables", BookingController.getTablesInBookingWithTime);
+router.get("/total-food-quantity", BookingController.getTotalFoodQuantity);
 module.exports = router;

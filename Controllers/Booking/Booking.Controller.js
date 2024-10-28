@@ -278,6 +278,22 @@ class BookingController {
     // Trả về thông tin tables với thời gian booking
     return res.status(200).json({ success: true, data: tables });
   }
+  async getTotalFoodQuantity(req, res) {
+    try {
+      const totalFoodQuantity = await BookingService.getTotalFoodQuantity();
+
+      return res.status(200).json({
+        success: true,
+        data: totalFoodQuantity,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Error calculating total food quantity",
+        error: error.message,
+      });
+    }
+  }
 }
 
 module.exports = new BookingController();

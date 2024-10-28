@@ -438,6 +438,42 @@ class BookingService {
       console.error("Error updating booking statuses:", error.message);
     }
   }
+
+  async getTotalFoodQuantity() {
+    try {
+      const result = await Booking.aggregate([
+        { $unwind: "$LIST_TABLES" }, // Tách từng phần tử trong LIST_TABLES thành từng document riêng
+        { $unwind: "$LIST_TABLES.LIST_FOOD" }, // Tách từng phần tử trong LIST_FOOD thành từng document riêng
+        {
+          $group: {
+            _id: "$LIST_TABLES.LIST_FOOD.FOOD_ID",
+            totalQuantity: { $sum: "$LIST_TABLES.LIST_FOOD.QUANTITY" },
+          },
+        },
+        {
+          $lookup: {
+            from: "foods", // Tên collection foods
+            localField: "_id",
+            foreignField: "_id",
+            as: "foodDetails",
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            totalQuantity: 1,
+            foodName: { $arrayElemAt: ["$foodDetails.NAME", 0] }, // Lấy tên món ăn từ foodDetails
+          },
+        },
+      ]);
+
+      return result;
+    } catch (error) {
+      throw new Error(
+        "Error calculating total food quantity: " + error.message
+      );
+    }
+  }
 }
 
 module.exports = new BookingService();

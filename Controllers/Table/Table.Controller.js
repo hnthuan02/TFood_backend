@@ -352,7 +352,6 @@ class TableController {
         for (let bookingTime of table.BOOKING_TIMES) {
           const startTime = moment(bookingTime.START_TIME, "YYYY-MM-DD HH:mm");
           const hoursDiff = currentTime.diff(startTime, "hours");
-          console.log(hoursDiff);
 
           // Kiểm tra trạng thái dựa trên sự khác biệt về giờ
           if (
