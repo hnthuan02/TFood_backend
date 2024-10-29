@@ -1,15 +1,30 @@
 const Message = require("../../Models/Message/Message.Model");
 const User = require("../../Models/User/User.Model");
 
-// Lấy tin nhắn giữa hai người dùng
+const mongoose = require("mongoose");
+
 const getMessages = async (req, res) => {
-  const { userId, receiverId } = req.params;
+  let { userId, receiverId } = req.params;
 
   try {
+    // Kiểm tra xem userId và receiverId có hợp lệ không
+    if (
+      !mongoose.Types.ObjectId.isValid(userId) ||
+      !mongoose.Types.ObjectId.isValid(receiverId)
+    ) {
+      return res
+        .status(400)
+        .json({ error: "userId hoặc receiverId không hợp lệ." });
+    }
+
+    // Chuyển đổi userId và receiverId thành ObjectId
+    const senderObjectId = new mongoose.Types.ObjectId(userId);
+    const receiverObjectId = new mongoose.Types.ObjectId(receiverId);
+
     const messages = await Message.find({
       $or: [
-        { senderId: userId, receiverId: receiverId },
-        { senderId: receiverId, receiverId: userId },
+        { senderId: senderObjectId, receiverId: receiverObjectId },
+        { senderId: receiverObjectId, receiverId: senderObjectId },
       ],
     }).sort({ createdAt: 1 });
 
@@ -17,9 +32,9 @@ const getMessages = async (req, res) => {
       messages.map(async (message) => {
         const sender = await User.findById(message.senderId);
         const senderName =
-          sender.ROLE && (sender.ROLE.ADMIN || sender.ROLE.STAFF)
+          sender?.ROLE?.ADMIN || sender?.ROLE?.STAFF
             ? "TFOOD"
-            : sender.FULLNAME;
+            : sender?.FULLNAME;
 
         return {
           ...message._doc,
@@ -30,6 +45,7 @@ const getMessages = async (req, res) => {
 
     res.status(200).json(messagesWithSenderName);
   } catch (error) {
+    console.error("Error fetching messages:", error);
     res.status(500).json({ error: "Lỗi khi lấy tin nhắn." });
   }
 };

@@ -5,6 +5,8 @@ const socketIo = require("socket.io");
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
 const Message = require("./Models/Message/Message.Model");
+const User = require("./Models/User/User.Model");
+const mongoose = require("mongoose");
 
 dotenv.config();
 
@@ -59,23 +61,51 @@ io.use((socket, next) => {
 
 // Socket.IO logic
 io.on("connection", (socket) => {
-  console.log("New client connected:", socket.id);
+  //console.log("New client connected:", socket.id);
+
+  socket.on("join", (userId) => {
+    socket.join(userId);
+  });
 
   socket.on("sendMessage", async (messageData) => {
-    const { senderId, receiverId, content } = messageData;
+    let { senderId, receiverId, content, senderName } = messageData;
 
-    // Lưu tin nhắn vào cơ sở dữ liệu
     try {
-      const message = new Message({ senderId, receiverId, content });
-      await message.save();
+      // Nếu receiverId là "admin", chọn một admin ngẫu nhiên
+      if (receiverId === "admin") {
+        const admins = await User.find({ "ROLE.ADMIN": true }).select("_id");
+        if (admins.length > 0) {
+          const randomAdmin = admins[Math.floor(Math.random() * admins.length)];
+          receiverId = randomAdmin._id; // Chọn một admin ngẫu nhiên
+        } else {
+          console.error("No admins found.");
+          return;
+        }
+      }
 
-      // Phát tin nhắn tới người nhận
-      io.to(receiverId).emit("receiveMessage", {
-        senderName: messageData.senderName,
+      // Tạo và lưu tin nhắn mới
+      const message = new Message({
+        senderId: new mongoose.Types.ObjectId(senderId),
+        receiverId: new mongoose.Types.ObjectId(receiverId),
         content,
       });
+      await message.save();
+
+      // Gửi tin nhắn tới người nhận và người gửi
+      io.to(receiverId.toString()).emit("receiveMessage", {
+        senderId,
+        receiverId,
+        content,
+        senderName,
+      });
+      io.to(senderId).emit("receiveMessage", {
+        senderId,
+        receiverId,
+        content,
+        senderName,
+      });
     } catch (error) {
-      console.error("Lỗi khi lưu tin nhắn:", error);
+      console.error("Error saving message:", error);
     }
   });
 
