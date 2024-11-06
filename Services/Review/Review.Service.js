@@ -7,7 +7,7 @@ class REVIEW_SERVICE {
       USER_ID: userId,
     });
     if (!booking) {
-      throw new Error("Không tìm thấy đơn đặt phòng");
+      throw new Error("Không tìm thấy đơn đặt bàn");
     }
 
     const existingReview = await REVIEW_MODEL.findOne({
@@ -15,7 +15,7 @@ class REVIEW_SERVICE {
       USER_ID: userId,
     });
     if (existingReview) {
-      throw new Error("Bạn đã đánh giá phòng này rồi");
+      throw new Error("Bạn đã đánh giá bàn này rồi");
     }
     // Tạo và lưu đánh giá mới
     const newReview = new REVIEW_MODEL({
@@ -61,6 +61,34 @@ class REVIEW_SERVICE {
       BOOKING_ID: bookingId,
     });
     return review;
+  }
+
+  async getAllReviews() {
+    const reviews = await REVIEW_MODEL.find().populate({
+      path: "USER_ID",
+      select: "FULLNAME",
+    });
+    return reviews;
+  }
+
+  async updateReviewStatus(reviewId, status) {
+    const review = await REVIEW_MODEL.findByIdAndUpdate(
+      reviewId,
+      { STATUS: status },
+      { new: true }
+    );
+    if (!review) {
+      throw new Error("Không tìm thấy đánh giá.");
+    }
+    return review;
+  }
+
+  async getApprovedReviews() {
+    const approvedReviews = await REVIEW_MODEL.find({ STATUS: true }).populate({
+      path: "USER_ID",
+      select: "FULLNAME",
+    });
+    return approvedReviews;
   }
 }
 module.exports = new REVIEW_SERVICE();

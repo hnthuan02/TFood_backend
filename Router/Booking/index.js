@@ -34,8 +34,13 @@ router.post(
   authorizeRoles("ADMIN"),
   BookingController.updateBookingStatusAdmin
 );
-router.get("/total-price", BookingController.getTotalPrice);
+router.get("/total-price", BookingController.getMonthlyRevenue);
 router.get("/allBookings", BookingController.getAllBookings);
 router.get("/:id/tables", BookingController.getTablesInBookingWithTime);
 router.get("/total-food-quantity", BookingController.getTotalFoodQuantity);
+router.get(
+  "/total-amount-by-user",
+  verifyToken,
+  BookingController.getTotalBookingAmountByUser
+);
 module.exports = router;

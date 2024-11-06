@@ -216,35 +216,48 @@ class BookingController {
     }
   }
 
-  async getTotalPrice(req, res) {
+  async getMonthlyRevenue(req, res) {
     try {
-      // Sử dụng MongoDB Aggregation để tính tổng TOTAL_PRICE của tất cả bookings
-      const totalPriceData = await Booking.aggregate([
+      // Lấy năm từ query params hoặc mặc định là năm hiện tại
+      const year = parseInt(req.query.year) || new Date().getFullYear();
+
+      // Sử dụng MongoDB Aggregation để tính tổng doanh thu theo tháng
+      const monthlyRevenueData = await Booking.aggregate([
+        {
+          $match: {
+            createdAt: {
+              $gte: new Date(`${year}-01-01`),
+              $lt: new Date(`${year + 1}-01-01`),
+            },
+          },
+        },
         {
           $group: {
-            _id: null, // Không cần nhóm theo trường nào
-            totalPrice: { $sum: "$TOTAL_PRICE" }, // Tính tổng TOTAL_PRICE
+            _id: { $month: "$createdAt" }, // Nhóm theo tháng của createdAt
+            totalRevenue: { $sum: "$TOTAL_PRICE" }, // Tính tổng TOTAL_PRICE cho mỗi tháng
           },
+        },
+        {
+          $sort: { _id: 1 }, // Sắp xếp theo tháng tăng dần
         },
       ]);
 
-      // Nếu không có dữ liệu trả về (tức là không có booking nào)
-      if (totalPriceData.length === 0) {
-        return res.status(200).json({
-          success: true,
-          totalPrice: 0,
-        });
-      }
+      // Tạo mảng với doanh thu của từng tháng, đảm bảo đủ 12 tháng (ngay cả khi không có doanh thu cho tháng đó)
+      const monthlyRevenue = Array(12).fill(0); // Khởi tạo mảng 12 phần tử với giá trị 0
+      monthlyRevenueData.forEach((item) => {
+        monthlyRevenue[item._id - 1] = item.totalRevenue; // Gán tổng doanh thu cho tháng tương ứng
+      });
 
       // Trả về kết quả
       return res.status(200).json({
         success: true,
-        totalPrice: totalPriceData[0].totalPrice,
+        year,
+        monthlyRevenue,
       });
     } catch (error) {
       return res.status(500).json({
         success: false,
-        message: "Có lỗi xảy ra khi tính tổng giá trị booking",
+        message: "Có lỗi xảy ra khi tính tổng doanh thu theo tháng",
         error: error.message,
       });
     }
@@ -290,6 +303,25 @@ class BookingController {
       return res.status(500).json({
         success: false,
         message: "Error calculating total food quantity",
+        error: error.message,
+      });
+    }
+  }
+
+  async getTotalBookingAmountByUser(req, res) {
+    try {
+      const userId = req.user_id;
+      const totalAmount = await BookingService.getTotalBookingAmountByUser(
+        userId
+      );
+      res.status(200).json({
+        success: true,
+        totalAmount: totalAmount.totalAmount || 0, // Trả về 0 nếu không có booking
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Lỗi khi lấy tổng số tiền đã dùng của người dùng",
         error: error.message,
       });
     }

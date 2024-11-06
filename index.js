@@ -7,7 +7,7 @@ const dotenv = require("dotenv");
 const Message = require("./Models/Message/Message.Model");
 const User = require("./Models/User/User.Model");
 const mongoose = require("mongoose");
-
+require("./cron/updateRestaurantState");
 dotenv.config();
 
 const app = express();
@@ -60,58 +60,76 @@ io.use((socket, next) => {
 });
 
 // Socket.IO logic
-io.on("connection", (socket) => {
-  //console.log("New client connected:", socket.id);
+io.on("connection", async (socket) => {
+  const userId = socket.userId;
 
-  socket.on("join", (userId) => {
-    socket.join(userId);
-  });
+  try {
+    // Lấy thông tin người dùng từ userId
+    const user = await User.findById(userId);
 
-  socket.on("sendMessage", async (messageData) => {
-    let { senderId, receiverId, content, senderName } = messageData;
-
-    try {
-      // Nếu receiverId là "admin", chọn một admin ngẫu nhiên
-      if (receiverId === "admin") {
-        const admins = await User.find({ "ROLE.ADMIN": true }).select("_id");
-        if (admins.length > 0) {
-          const randomAdmin = admins[Math.floor(Math.random() * admins.length)];
-          receiverId = randomAdmin._id; // Chọn một admin ngẫu nhiên
-        } else {
-          console.error("No admins found.");
-          return;
-        }
-      }
-
-      // Tạo và lưu tin nhắn mới
-      const message = new Message({
-        senderId: new mongoose.Types.ObjectId(senderId),
-        receiverId: new mongoose.Types.ObjectId(receiverId),
-        content,
-      });
-      await message.save();
-
-      // Gửi tin nhắn tới người nhận và người gửi
-      io.to(receiverId.toString()).emit("receiveMessage", {
-        senderId,
-        receiverId,
-        content,
-        senderName,
-      });
-      io.to(senderId).emit("receiveMessage", {
-        senderId,
-        receiverId,
-        content,
-        senderName,
-      });
-    } catch (error) {
-      console.error("Error saving message:", error);
+    if (user.ROLE.ADMIN || user.ROLE.STAFF) {
+      socket.join("admins");
     }
-  });
 
-  socket.on("disconnect", () => {
-    console.log("Client disconnected:", socket.id);
-  });
+    socket.on("join", (userId) => {
+      socket.join(userId);
+    });
+
+    socket.on("sendMessage", async (messageData) => {
+      let { senderId, receiverId, content, senderName } = messageData;
+
+      try {
+        if (receiverId === "admin") {
+          const message = new Message({
+            senderId: new mongoose.Types.ObjectId(senderId),
+            receiverId: null,
+            content,
+          });
+          await message.save();
+
+          io.to("admins").emit("receiveMessage", {
+            senderId,
+            receiverId: "admin",
+            content,
+            senderName,
+            createdAt: message.createdAt,
+          });
+        } else {
+          // Nếu receiverId không phải là "admin", gửi tin nhắn bình thường
+          const message = new Message({
+            senderId: new mongoose.Types.ObjectId(senderId),
+            receiverId: new mongoose.Types.ObjectId(receiverId),
+            content,
+          });
+          await message.save();
+
+          // Gửi tin nhắn tới người nhận và người gửi
+          io.to(receiverId.toString()).emit("receiveMessage", {
+            senderId,
+            receiverId,
+            content,
+            senderName,
+            createdAt: message.createdAt,
+          });
+          io.to(senderId).emit("receiveMessage", {
+            senderId,
+            receiverId,
+            content,
+            senderName,
+            createdAt: message.createdAt,
+          });
+        }
+      } catch (error) {
+        console.error("Error saving message:", error);
+      }
+    });
+
+    socket.on("disconnect", () => {
+      // console.log("Client disconnected:", socket.id);
+    });
+  } catch (error) {
+    console.error("Error connecting user:", error);
+  }
 });
 
 server.listen(port, () => {

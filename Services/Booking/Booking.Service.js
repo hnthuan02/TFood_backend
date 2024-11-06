@@ -5,6 +5,7 @@ const Table_Service = require("../../Services/Table/Table.Service");
 const USER_MODEL = require("../../Models/User/User.Model");
 const moment = require("moment");
 const MAIL_QUEUE = require("../../Utils/sendMail");
+const mongoose = require("mongoose");
 
 class BookingService {
   async createBookingFromCart(userId, userName, phoneNumber, email) {
@@ -140,11 +141,9 @@ class BookingService {
       if (!user || !user.EMAIL)
         throw new Error("Không tìm thấy người dùng hoặc email không tồn tại");
 
-      // Cập nhật trạng thái của đơn đặt phòng
       booking.STATUS = status;
       await booking.save();
 
-      // Cập nhật trạng thái phòng trong LIST_ROOMS của đơn đặt phòng
       for (let table of booking.LIST_TABLES) {
         await this.updateRoomAvailability(
           table.TABLE_ID,
@@ -164,14 +163,14 @@ class BookingService {
     <!-- Body -->
     <div style="padding: 20px; background-color: #f8f9fa;">
       <h2 style="color: #34495E; font-size: 22px;">Xin chào ${user.FULLNAME},</h2>
-      <p style="color: #555; font-size: 16px;">Chúc mừng bạn đã đặt phòng thành công với mã đơn hàng <strong>${bookingId}</strong>. Chi tiết đơn hàng như sau:</p>
+      <p style="color: #555; font-size: 16px;">Chúc mừng bạn đã đặt bàn thành công với mã đơn hàng <strong>${bookingId}</strong>. Chi tiết đơn hàng như sau:</p>
       <div style="background-color: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; margin: 20px 0;">
         <ul style="list-style: none; padding: 0; color: #34495E;">
           <li style="margin-bottom: 10px; font-size: 16px;">
             <strong>Tên khách hàng:</strong> ${booking.USER_NAME}
           </li>
           <li style="margin-bottom: 10px; font-size: 16px;">
-            <strong>Thời gian đặt phòng:</strong> ${booking.LIST_TABLES[0].BOOKING_TIME}
+            <strong>Thời gian đặt bàn:</strong> ${booking.LIST_TABLES[0].BOOKING_TIME}
           </li>
           <li style="font-size: 16px;">
             <strong>Tổng tiền:</strong> ${booking.TOTAL_PRICE} VND
@@ -211,7 +210,6 @@ class BookingService {
     }
   }
 
-  // Cập nhật AVAILABILITY của các phòng đã đặt
   async updateRoomAvailability(tableId, bookingTime, user_id) {
     try {
       // Tìm bàn bằng ID
@@ -245,11 +243,9 @@ class BookingService {
     let listTables = [];
     let totalPrice = 0;
 
-    // Kiểm tra nếu chỉ có một phòng (object) hoặc nhiều phòng (array)
     const isSingleTable = !Array.isArray(tablesDetails);
 
     if (isSingleTable) {
-      // Trường hợp chỉ có một phòng
       tablesDetails = [tablesDetails]; // Chuyển object thành mảng để xử lý dễ hơn
     }
 
@@ -267,13 +263,11 @@ class BookingService {
       const days = (checkOutDate - checkInDate) / (1000 * 60 * 60 * 24); // Tính số ngày ở
 
       if (days <= 0) {
-        throw new Error("Ngày trả phòng phải lớn hơn ngày nhận phòng.");
+        throw new Error("Ngày trả bàn phải lớn hơn ngày nhận bàn.");
       }
 
-      // Tính tổng giá cho từng phòng
       const totalPriceRoom = days * room.PRICE_PERNIGHT;
 
-      // Thêm phòng vào danh sách phòng trong booking
       listRooms.push({
         ROOM_ID: roomId,
         START_DATE: checkInDate,
@@ -285,14 +279,13 @@ class BookingService {
       totalPrice += totalPriceRoom;
     }
 
-    // Tạo booking mới với thông tin phòng
     const booking = new BOOKING_MODEL({
       USER_ID: userId,
-      LIST_ROOMS: listRooms, // Danh sách các phòng đã đặt
-      TOTAL_PRICE: totalPrice, // Tổng giá cho tất cả các phòng
+      LIST_ROOMS: listRooms,
+      TOTAL_PRICE: totalPrice,
       STATUS: "NotYetPaid",
-      BOOKING_TYPE: bookingType, // Loại đặt phòng (ví dụ: Website)
-      CUSTOMER_PHONE: roomsDetails[0].CUSTOMER_PHONE, // Thông tin khách hàng (lấy từ phòng đầu tiên)
+      BOOKING_TYPE: bookingType,
+      CUSTOMER_PHONE: roomsDetails[0].CUSTOMER_PHONE,
       CUSTOMER_NAME: roomsDetails[0].CUSTOMER_NAME,
       CITIZEN_ID: roomsDetails[0].CITIZEN_ID,
     });
@@ -471,6 +464,29 @@ class BookingService {
     } catch (error) {
       throw new Error(
         "Error calculating total food quantity: " + error.message
+      );
+    }
+  }
+
+  async getTotalBookingAmountByUser(userId) {
+    try {
+      const result = await Booking.aggregate([
+        { $match: { USER_ID: new mongoose.Types.ObjectId(userId) } },
+        {
+          $group: {
+            _id: "$USER_ID",
+            totalAmount: { $sum: "$TOTAL_PRICE" },
+          },
+        },
+      ]);
+      return result[0] || { totalAmount: 0 };
+    } catch (error) {
+      console.error(
+        "Lỗi khi tính tổng số tiền đã dùng của người dùng:",
+        error.message
+      );
+      throw new Error(
+        "Lỗi khi tính tổng số tiền đã dùng của người dùng: " + error.message
       );
     }
   }
