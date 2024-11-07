@@ -1,4 +1,5 @@
 const Booking = require("../../Models/Booking/Booking.Model");
+const Voucher = require("../../Models/Voucher/Voucher.Model");
 const Cart = require("../../Models/Cart/Cart.Model");
 const Table = require("../../Models/Table/Table.Model");
 const Table_Service = require("../../Services/Table/Table.Service");
@@ -143,6 +144,11 @@ class BookingService {
 
       booking.STATUS = status;
       await booking.save();
+
+      const pointsToAdd = Math.round(booking.TOTAL_PRICE / 100000);
+
+      user.CUMULATIVE_POINTS += pointsToAdd;
+      await user.save();
 
       for (let table of booking.LIST_TABLES) {
         await this.updateRoomAvailability(

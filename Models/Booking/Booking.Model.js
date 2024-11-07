@@ -58,6 +58,10 @@ const BookingSchema = new Schema(
         _id: false,
       },
     ],
+    VOUCHER: {
+      type: String,
+      required: false,
+    },
     TOTAL_PRICE: {
       type: Number,
       required: true,

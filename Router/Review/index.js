@@ -20,7 +20,7 @@ router.post(
   verifyToken,
   REVIEW_CONTROLLER.getReviewByUser
 );
-router.get("/getAllReviews", verifyToken, REVIEW_CONTROLLER.getAllReviews);
+router.get("/getAllReviews", REVIEW_CONTROLLER.getAllReviews);
 router.post("/:reviewId/status", REVIEW_CONTROLLER.updateReviewStatus);
 router.get("/approved", REVIEW_CONTROLLER.getApprovedReviews);
 module.exports = router;

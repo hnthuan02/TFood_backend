@@ -26,6 +26,11 @@ const VoucherSchema = new Schema(
       type: Date,
       required: true,
     },
+    USAGE_LIMIT: {
+      type: Number,
+      required: true,
+      default: 1,
+    },
     STATUS: {
       type: Boolean,
       default: true,

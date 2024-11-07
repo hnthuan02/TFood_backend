@@ -1,15 +1,17 @@
 const BookingService = require("../../Services/Booking/Booking.Service");
 const Cart = require("../../Models/Cart/Cart.Model");
 const Booking = require("../../Models//Booking/Booking.Model");
+const Voucher = require("../../Models/Voucher/Voucher.Model");
+const VoucherController = require("../Voucher/Voucher.Controller");
 
 class BookingController {
   // Tạo booking từ giỏ hàng
   async createBookingFromCart(req, res) {
     try {
       const userId = req.user_id; // Lấy userId từ token
-      const { userName, phoneNumber, email, selectedTables } = req.body; // selectedTables là mảng chứa ID của các bàn được chọn
-
-      // Kiểm tra xem các thông tin người dùng đã được cung cấp chưa
+      const { userName, phoneNumber, email, selectedTables, voucherCode } =
+        req.body; // selectedTables là mảng chứa ID của các bàn được chọn
+      // Kiểm tra thông tin người dùng
       if (
         !userName ||
         !phoneNumber ||
@@ -27,11 +29,11 @@ class BookingController {
       const cart = await Cart.findOne({ USER_ID: userId })
         .populate({
           path: "LIST_TABLES.SERVICES.SERVICES_ID",
-          select: "servicePrice", // Lấy giá dịch vụ
+          select: "servicePrice",
         })
         .populate({
           path: "LIST_TABLES.LIST_FOOD.FOOD_ID",
-          select: "PRICE", // Lấy giá món ăn
+          select: "PRICE",
         });
 
       if (!cart) {
@@ -53,6 +55,46 @@ class BookingController {
         });
       }
 
+      // Kiểm tra voucher nếu có
+      let discountPercent = 0;
+
+      if (voucherCode) {
+        const voucher = await Voucher.findOne({
+          CODE: voucherCode,
+          STATUS: true,
+        });
+
+        if (voucher) {
+          // Kiểm tra ngày hết hạn của voucher
+          if (new Date() > new Date(voucher.EXPIRATION_DATE)) {
+            return res.status(400).json({
+              success: false,
+              message: "Voucher đã hết hạn.",
+            });
+          }
+
+          // Kiểm tra nếu voucher còn lượt sử dụng
+          if (voucher.USAGE_LIMIT <= 0) {
+            return res.status(400).json({
+              success: false,
+              message: "Voucher đã đạt đến giới hạn sử dụng.",
+            });
+          }
+
+          discountPercent = voucher.DISCOUNT_PERCENT || 0;
+
+          // Giảm 1 ở trường USAGE_LIMIT sau khi sử dụng voucher
+          voucher.USAGE_LIMIT -= 1;
+          await voucher.save();
+          await VoucherController.updateVoucherStatusFromUsage();
+        } else {
+          return res.status(404).json({
+            success: false,
+            message: "Voucher không tồn tại hoặc không hợp lệ.",
+          });
+        }
+      }
+
       // Tính tổng giá cho các bàn được chọn
       const totalPrice = selectedTablesData.reduce((total, table) => {
         const totalFoodPrice = table.LIST_FOOD.reduce((foodTotal, food) => {
@@ -62,10 +104,9 @@ class BookingController {
 
         const totalServicePrice = table.SERVICES.reduce(
           (serviceTotal, service) => {
-            if (service.SERVICES_ID) {
-              return serviceTotal + service.SERVICES_ID.servicePrice;
-            }
-            return serviceTotal;
+            return service.SERVICES_ID
+              ? serviceTotal + service.SERVICES_ID.servicePrice
+              : serviceTotal;
           },
           0
         );
@@ -74,6 +115,9 @@ class BookingController {
           total + totalFoodPrice + totalServicePrice + (table.TABLE_PRICE || 0)
         );
       }, 0);
+
+      // Áp dụng giảm giá từ voucher
+      const finalPrice = totalPrice * (1 - discountPercent / 100);
 
       // Tạo booking mới từ các bàn được chọn
       const newBooking = new Booking({
@@ -92,7 +136,7 @@ class BookingController {
             QUANTITY: food.QUANTITY,
           })),
         })),
-        TOTAL_PRICE: totalPrice,
+        TOTAL_PRICE: finalPrice,
         STATUS: "NotYetPaid",
         BOOKING_TYPE: "Website",
       });
@@ -101,10 +145,8 @@ class BookingController {
 
       // Kiểm tra xem có chọn hết các bàn trong giỏ hàng hay không
       if (selectedTables.length === cart.LIST_TABLES.length) {
-        // Nếu tất cả các bàn được chọn, xóa toàn bộ giỏ hàng
         await Cart.findOneAndDelete({ USER_ID: userId });
       } else {
-        // Nếu không, chỉ xóa các bàn được chọn
         const remainingTables = cart.LIST_TABLES.filter(
           (table) => !selectedTables.includes(table.TABLE_ID.toString())
         );
