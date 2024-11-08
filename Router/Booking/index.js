@@ -43,4 +43,5 @@ router.get(
   verifyToken,
   BookingController.getTotalBookingAmountByUser
 );
+router.get("/monthly-stats", BookingController.getMonthlyBookingStats);
 module.exports = router;

@@ -82,7 +82,7 @@ class TableService {
       });
 
       // Kiểm tra số lượng bảng được tìm thấy
-      console.log(`Number of tables found: ${tables.length}`);
+      //console.log(`Number of tables found: ${tables}`);
 
       if (tables.length === 0) {
         return { message: "Không có bảng nào cần cập nhật." };

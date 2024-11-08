@@ -368,6 +368,25 @@ class BookingController {
       });
     }
   }
+  async getMonthlyBookingStats(req, res) {
+    const { year } = req.query;
+    const currentYear = new Date().getFullYear();
+    const selectedYear = year ? parseInt(year) : currentYear;
+
+    try {
+      const stats = await BookingService.getMonthlyBookingStats(selectedYear);
+      res.status(200).json({
+        success: true,
+        year: selectedYear,
+        monthlyStats: stats,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
 }
 
 module.exports = new BookingController();

@@ -3,7 +3,7 @@ const tableService = require("../Services/Table/Table.Service");
 
 // Chạy cron job mỗi giờ
 cron.schedule("0 * * * *", async () => {
-  //console.log("Cron job đang chạy");
+  console.log("Cron job đang chạy");
   try {
     await tableService.updateBookingTimeStatusIfOverdue();
 

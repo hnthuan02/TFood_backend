@@ -1,4 +1,5 @@
 const REVIEW_SERVICE = require("../../Services/Review/Review.Service");
+const Review = require("../../Models/Review/Review.Model");
 class REVIEW_CONTROLLER {
   async addReview(req, res) {
     try {
@@ -112,6 +113,26 @@ class REVIEW_CONTROLLER {
     } catch (error) {
       console.error("Lỗi khi lấy các đánh giá đã duyệt:", error);
       return res.status(500).json({ success: false, msg: error.message });
+    }
+  }
+  async deleteReview(req, res) {
+    const reviewId = req.params.id;
+
+    try {
+      const deletedReview = await Review.findByIdAndDelete(reviewId);
+
+      if (!deletedReview) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Đánh giá không tồn tại." });
+      }
+
+      res.json({ success: true, message: "Đánh giá đã được xóa thành công." });
+    } catch (error) {
+      console.error("Lỗi khi xóa đánh giá:", error);
+      res
+        .status(500)
+        .json({ success: false, message: "Đã xảy ra lỗi khi xóa đánh giá." });
     }
   }
 }

@@ -359,7 +359,10 @@ class BookingService {
       const bookings = await Booking.find()
         .populate("USER_ID", "FULLNAME EMAIL") // Populate user information
         .populate("LIST_TABLES.TABLE_ID", "TABLE_NUMBER") // Populate table information
-        .populate("LIST_TABLES.SERVICES.SERVICES_ID", "serviceName") // Populate services
+        .populate(
+          "LIST_TABLES.SERVICES.SERVICES_ID",
+          "serviceName servicePrice"
+        ) // Populate services
         .populate("LIST_TABLES.LIST_FOOD.FOOD_ID", "NAME PRICE"); // Populate food details
 
       return bookings;
@@ -494,6 +497,68 @@ class BookingService {
       throw new Error(
         "Lỗi khi tính tổng số tiền đã dùng của người dùng: " + error.message
       );
+    }
+  }
+
+  async getMonthlyBookingStats(year) {
+    try {
+      const monthlyStats = await Booking.aggregate([
+        {
+          $match: {
+            STATUS: { $in: ["Booked", "Completed"] },
+            createdAt: {
+              $gte: new Date(`${year}-01-01`),
+              $lte: new Date(`${year}-12-31`),
+            },
+          },
+        },
+        {
+          $group: {
+            _id: {
+              month: { $month: "$createdAt" },
+              status: "$STATUS",
+            },
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $group: {
+            _id: "$_id.month",
+            stats: {
+              $push: {
+                status: "$_id.status",
+                count: "$count",
+              },
+            },
+          },
+        },
+        {
+          $sort: { _id: 1 },
+        },
+      ]);
+
+      // Initialize result array with 12 months
+      const result = Array.from({ length: 12 }, (_, i) => ({
+        month: i + 1,
+        Booked: 0,
+        Completed: 0,
+      }));
+
+      // Map aggregated data to result array
+      monthlyStats.forEach((stat) => {
+        const monthIndex = stat._id - 1;
+        stat.stats.forEach((item) => {
+          if (item.status === "Booked") {
+            result[monthIndex].Booked = item.count;
+          } else if (item.status === "Completed") {
+            result[monthIndex].Completed = item.count;
+          }
+        });
+      });
+
+      return result;
+    } catch (error) {
+      throw new Error("Error fetching monthly booking stats: " + error.message);
     }
   }
 }

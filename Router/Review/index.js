@@ -23,4 +23,5 @@ router.post(
 router.get("/getAllReviews", REVIEW_CONTROLLER.getAllReviews);
 router.post("/:reviewId/status", REVIEW_CONTROLLER.updateReviewStatus);
 router.get("/approved", REVIEW_CONTROLLER.getApprovedReviews);
+router.delete("/delete/:id", REVIEW_CONTROLLER.deleteReview);
 module.exports = router;

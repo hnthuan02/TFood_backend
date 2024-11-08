@@ -329,7 +329,7 @@ class TableController {
 
   async checkAndUpdateBookingTimeStatus(req, res) {
     try {
-      const result = await tableService.updateBookingTimeStatusIfOverdue();
+      const result = await TableService.updateBookingTimeStatusIfOverdue();
       res.status(200).json(result);
     } catch (error) {
       res.status(500).json({ error: error.message });
