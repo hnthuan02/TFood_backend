@@ -6,10 +6,10 @@ const ServiceTableController = require("../../Controllers/ServiceTable/ServiceTa
 router.post("/createServices", ServiceTableController.createServiceTable);
 
 // Cập nhật dịch vụ
-router.put("/services/:id", ServiceTableController.updateServiceTable);
+router.put("/edit/:id", ServiceTableController.updateServiceTable);
 
 // Xóa dịch vụ
-router.delete("/services/:id", ServiceTableController.deleteServiceTable);
+router.delete("/delete/:id", ServiceTableController.deleteServiceTable);
 
 // Lấy danh sách dịch vụ theo type
 router.get("/services", ServiceTableController.getServiceTablesByType);
