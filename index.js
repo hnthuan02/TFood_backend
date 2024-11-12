@@ -79,21 +79,33 @@ io.on("connection", async (socket) => {
       let { senderId, receiverId, content, senderName } = messageData;
 
       try {
-        if (receiverId === "admin") {
-          const message = new Message({
-            senderId: new mongoose.Types.ObjectId(senderId),
-            receiverId: null,
-            content,
+        // Kiểm tra nếu người gửi là một user thường (không phải ADMIN hoặc STAFF)
+        const sender = await User.findById(senderId);
+        if (!sender.ROLE.ADMIN && !sender.ROLE.STAFF) {
+          // Lấy danh sách tất cả ADMIN và STAFF
+          const adminStaffUsers = await User.find({
+            $or: [{ "ROLE.ADMIN": true }, { "ROLE.STAFF": true }],
           });
-          await message.save();
 
-          io.to("admins").emit("receiveMessage", {
-            senderId,
-            receiverId: "admin",
-            content,
-            senderName,
-            createdAt: message.createdAt,
+          // Lưu tin nhắn với mỗi người nhận là ADMIN hoặc STAFF
+          const messagePromises = adminStaffUsers.map(async (adminOrStaff) => {
+            const message = new Message({
+              senderId: new mongoose.Types.ObjectId(senderId),
+              receiverId: adminOrStaff._id, // Lưu mỗi người nhận là ADMIN hoặc STAFF
+              content,
+            });
+            await message.save();
+
+            // Phát tin nhắn tới tất cả các ADMIN và STAFF
+            io.to(adminOrStaff._id.toString()).emit("receiveMessage", {
+              senderId,
+              receiverId: adminOrStaff._id,
+              content,
+              senderName,
+              createdAt: message.createdAt,
+            });
           });
+          await Promise.all(messagePromises);
         } else {
           // Nếu receiverId không phải là "admin", gửi tin nhắn bình thường
           const message = new Message({
