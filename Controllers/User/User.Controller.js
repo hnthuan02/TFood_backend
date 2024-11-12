@@ -264,6 +264,8 @@ class USER_CONTROLLER {
         data: result.users,
         totalPages: result.totalPages,
         totalCount: result.totalCount,
+        totalStaff: result.totalStaff,
+        totalUser: result.totalUser,
       });
     } catch (err) {
       res.status(500).json({

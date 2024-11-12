@@ -195,18 +195,23 @@ class USER_SERVICE {
         .limit(limit)
         .lean();
 
-      if (users.length === 0) {
-        return {
-          users: [],
-          totalPages: 0,
-          totalCount: 0,
-        };
-      }
+      // Đếm số lượng Staff và User dựa trên ROLE
+      const totalStaff = await USER_MODEL.countDocuments({
+        ...query,
+        "ROLE.STAFF": true,
+      });
+      const totalUser = await USER_MODEL.countDocuments({
+        ...query,
+        "ROLE.STAFF": false,
+        "ROLE.ADMIN": false,
+      });
 
       return {
         users,
         totalPages,
         totalCount,
+        totalStaff,
+        totalUser,
       };
     } catch (error) {
       console.error("Error querying users:", error);
