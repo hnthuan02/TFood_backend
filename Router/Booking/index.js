@@ -44,4 +44,5 @@ router.get(
   BookingController.getTotalBookingAmountByUser
 );
 router.get("/monthly-stats", BookingController.getMonthlyBookingStats);
+router.put("/add-items", BookingController.addItemsToBooking);
 module.exports = router;

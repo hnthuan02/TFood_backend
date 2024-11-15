@@ -11,5 +11,9 @@ router.post("/create_payment_url", PAYMENT_CONTROLLER.createPaymentVnpayUrl);
 
 // Route xử lý phản hồi từ VNPAY sau khi thanh toán
 router.get("/vnpay_return", PAYMENT_CONTROLLER.vnpayReturn);
+router.post(
+  "/create_additional_payment_url",
+  PAYMENT_CONTROLLER.createAdditionalPaymentUrl
+);
 
 module.exports = router;

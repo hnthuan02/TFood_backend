@@ -387,6 +387,39 @@ class BookingController {
       });
     }
   }
+
+  async addItemsToBooking(req, res) {
+    try {
+      const { bookingId, tableId, foods, services } = req.body;
+
+      if (!bookingId || !tableId) {
+        return res.status(400).json({
+          success: false,
+          message: "Thiếu thông tin bookingId hoặc tableId.",
+        });
+      }
+
+      // Cập nhật món ăn, dịch vụ và tổng giá
+      const { updatedBooking, addedItemsTotal } =
+        await BookingService.addItemsToBooking(
+          bookingId,
+          tableId,
+          foods,
+          services
+        );
+
+      return res.status(200).json({
+        success: true,
+        data: updatedBooking,
+        addedItemsTotal: addedItemsTotal, // Tổng số tiền của các món vừa thêm
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: `Lỗi khi thêm món ăn hoặc dịch vụ vào booking: ${error.message}`,
+      });
+    }
+  }
 }
 
 module.exports = new BookingController();

@@ -1,7 +1,9 @@
 const Booking = require("../../Models/Booking/Booking.Model");
 const Voucher = require("../../Models/Voucher/Voucher.Model");
 const Cart = require("../../Models/Cart/Cart.Model");
+const Food = require("../../Models/Food/Food.Model");
 const Table = require("../../Models/Table/Table.Model");
+const ServiceTable = require("../../Models/ServiceTable/ServiceTable.Model");
 const Table_Service = require("../../Services/Table/Table.Service");
 const USER_MODEL = require("../../Models/User/User.Model");
 const moment = require("moment");
@@ -9,6 +11,17 @@ const MAIL_QUEUE = require("../../Utils/sendMail");
 const mongoose = require("mongoose");
 
 class BookingService {
+  async getBookingById(bookingId) {
+    console.log(bookingId);
+    try {
+      // Tìm booking dựa trên bookingId
+      const booking = await Booking.findById(bookingId);
+      return booking; // Trả về thông tin booking nếu tìm thấy
+    } catch (error) {
+      console.error("Lỗi khi lấy thông tin booking:", error);
+      throw new Error("Không thể lấy thông tin booking");
+    }
+  }
   async createBookingFromCart(userId, userName, phoneNumber, email) {
     try {
       const cart = await Cart.findOne({ USER_ID: userId })
@@ -132,6 +145,7 @@ class BookingService {
   }
 
   async updateBookingStatus({ bookingId, status }) {
+    console.log("cha" + bookingId);
     try {
       // Tìm booking bằng ID
       const booking = await Booking.findById(bookingId);
@@ -364,7 +378,7 @@ class BookingService {
           "serviceName servicePrice"
         ) // Populate services
         .populate("LIST_TABLES.LIST_FOOD.FOOD_ID", "NAME PRICE"); // Populate food details
-
+      await Table_Service.updateBookingTimeStatusIfOverdue();
       return bookings;
     } catch (error) {
       throw new Error("Error while retrieving bookings: " + error.message);
@@ -559,6 +573,83 @@ class BookingService {
       return result;
     } catch (error) {
       throw new Error("Error fetching monthly booking stats: " + error.message);
+    }
+  }
+
+  async addItemsToBooking(bookingId, tableId, foods = [], services = []) {
+    try {
+      const booking = await Booking.findById(bookingId);
+
+      if (!booking) {
+        throw new Error("Không tìm thấy booking.");
+      }
+
+      const table = booking.LIST_TABLES.find(
+        (table) => table.TABLE_ID.toString() === tableId
+      );
+
+      if (!table) {
+        throw new Error("Không tìm thấy bàn trong booking.");
+      }
+
+      let totalAddedPrice = 0;
+
+      // Thêm món ăn
+      for (const food of foods) {
+        const foodItem = await Food.findById(food.FOOD_ID);
+        if (!foodItem) {
+          throw new Error(`Không tìm thấy món ăn với ID ${food.FOOD_ID}.`);
+        }
+
+        table.LIST_FOOD.push({
+          FOOD_ID: food.FOOD_ID,
+          QUANTITY: food.QUANTITY,
+        });
+
+        totalAddedPrice += foodItem.PRICE * food.QUANTITY;
+      }
+
+      // Thêm dịch vụ
+      for (const service of services) {
+        const serviceItem = await ServiceTable.findById(service.SERVICES_ID);
+        if (!serviceItem) {
+          throw new Error(
+            `Không tìm thấy dịch vụ với ID ${service.SERVICES_ID}.`
+          );
+        }
+
+        table.SERVICES.push({
+          SERVICES_ID: service.SERVICES_ID,
+        });
+
+        totalAddedPrice += serviceItem.servicePrice;
+      }
+
+      // Cập nhật tổng giá booking
+      booking.TOTAL_PRICE += totalAddedPrice;
+
+      await booking.save();
+
+      return { updatedBooking: booking, addedItemsTotal: totalAddedPrice };
+    } catch (error) {
+      throw new Error(
+        `Lỗi khi thêm món ăn hoặc dịch vụ vào booking: ${error.message}`
+      );
+    }
+  }
+  async updateBookingTotalPrice({ bookingId, additionalAmount }) {
+    try {
+      const booking = await Booking.findById(bookingId);
+      if (!booking) throw new Error("Booking not found");
+
+      booking.TOTAL_PRICE += 0;
+
+      const savedBooking = await booking.save();
+
+      return savedBooking;
+    } catch (error) {
+      console.error("Error updating total price:", error.message);
+      throw new Error(`Error updating total price: ${error.message}`);
     }
   }
 }
