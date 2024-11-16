@@ -3,6 +3,7 @@ const TABLE_MODEL = require("../../Models/Table/Table.Model");
 const FOOD_MODEL = require("../../Models/Food/Food.Model");
 const mongoose = require("mongoose");
 const ServiceTable = require("../../Models/ServiceTable/ServiceTable.Model");
+const moment = require("moment");
 
 class CART_SERVICE {
   async createCart(userId) {
@@ -22,82 +23,62 @@ class CART_SERVICE {
       cart = await this.createCart(userId);
     }
 
-    // Tìm bàn trong giỏ hàng
-    let tableInCart = cart.LIST_TABLES.find(
+    // Kiểm tra xem bàn với `TABLE_ID` đã tồn tại trong giỏ hàng hay chưa
+    const isTableInCart = cart.LIST_TABLES.some(
       (table) => table.TABLE_ID.toString() === tableId
     );
 
-    let tablePrice = 0;
-    if (tableInCart) {
-      // Nếu bàn đã có trong giỏ hàng, nhưng có thể có nhiều BOOKING_TIME khác nhau
-      if (tableInCart.BOOKING_TIME === bookingTime) {
-        // Nếu thời gian đặt giống nhau, không thêm nữa
-        throw new Error(
-          "This table has already been booked for the selected time."
-        );
-      }
-
-      // Nếu thời gian khác nhau, thêm bàn mới
-      const newTableEntry = {
-        TABLE_ID: tableId,
-        BOOKING_TIME: bookingTime,
-        SERVICES: services,
-        LIST_FOOD: listFood,
-      };
-
-      cart.LIST_TABLES.push(newTableEntry);
-    } else {
-      // Nếu bàn chưa có trong giỏ hàng, thêm bàn mới
-      const table = await TABLE_MODEL.findById(tableId);
-      if (!table) {
-        throw new Error("Table not found");
-      }
-
-      const listFoodItems = [];
-      for (const foodItem of listFood) {
-        const food = await FOOD_MODEL.findById(foodItem.FOOD_ID);
-        if (!food) {
-          throw new Error(`Food with ID ${foodItem.FOOD_ID} not found`);
-        }
-        listFoodItems.push({
-          FOOD_ID: food._id,
-          QUANTITY: foodItem.QUANTITY,
-          TOTAL_PRICE_FOOD: food.PRICE * foodItem.QUANTITY,
-        });
-      }
-
-      const listServiceItems = []; // Sửa lại biến để lưu dịch vụ
-      for (const serviceItem of services) {
-        const serviceTable = await ServiceTable.findById(serviceItem._id);
-        if (!serviceTable) {
-          throw new Error(`ServiceTable with ID ${serviceItem._id} not found`);
-        }
-        // Lưu đúng ID của dịch vụ
-        listServiceItems.push({
-          SERVICES_ID: serviceTable._id,
-        });
-      }
-
-      // Thêm bàn mới vào LIST_TABLES
-      cart.LIST_TABLES.push({
-        TABLE_ID: tableId,
-        BOOKING_TIME: bookingTime,
-        SERVICES: listServiceItems, // Sử dụng danh sách dịch vụ đã cập nhật
-        LIST_FOOD: listFoodItems,
-      });
+    if (isTableInCart) {
+      throw new Error(
+        "Bạn đã thêm bàn này vào giỏ hàng rồi vui lòng chọn bàn khác!"
+      );
     }
 
-    // Lấy giá của bàn từ mô hình Table
+    // Nếu bàn chưa tồn tại, thực hiện thêm mới
     const table = await TABLE_MODEL.findById(tableId);
     if (!table) {
       throw new Error("Table not found");
     }
-    tablePrice = table.PRICE;
 
-    // Cập nhật tổng giá tiền bao gồm giá bàn, món ăn và dịch vụ
+    const listFoodItems = [];
+    for (const foodItem of listFood) {
+      const food = await FOOD_MODEL.findById(foodItem.FOOD_ID);
+      if (!food) {
+        throw new Error(`Food with ID ${foodItem.FOOD_ID} not found`);
+      }
+      listFoodItems.push({
+        FOOD_ID: food._id,
+        QUANTITY: foodItem.QUANTITY,
+        TOTAL_PRICE_FOOD: food.PRICE * foodItem.QUANTITY,
+      });
+    }
+
+    const listServiceItems = [];
+    for (const serviceItem of services) {
+      const serviceTable = await ServiceTable.findById(serviceItem._id);
+      if (!serviceTable) {
+        throw new Error(`ServiceTable with ID ${serviceItem._id} not found`);
+      }
+      listServiceItems.push({
+        SERVICES_ID: serviceTable._id,
+      });
+    }
+
+    // Thêm bàn mới vào LIST_TABLES
+    cart.LIST_TABLES.push({
+      TABLE_ID: tableId,
+      BOOKING_TIME: bookingTime,
+      SERVICES: listServiceItems,
+      LIST_FOOD: listFoodItems,
+    });
+
+    // Lấy giá bàn
+    const tablePrice = table.PRICE;
+
+    // Tính tổng giá tiền bao gồm giá bàn, món ăn và dịch vụ
     const totalPrice = await this.totalPriceCart(cart.LIST_TABLES);
 
-    // Cộng thêm giá bàn (tablePrice) vào tổng giá
+    // Cập nhật tổng giá
     cart.TOTAL_PRICES = totalPrice + tablePrice;
     await cart.save();
 

@@ -255,6 +255,20 @@ class USER_SERVICE {
     }
     return updateData;
   }
+
+  async resetCumulativePoints() {
+    try {
+      const result = await User.updateMany(
+        {}, // Cập nhật tất cả người dùng
+        { $set: { CUMULATIVE_POINTS: 0 } } // Đặt CUMULATIVE_POINTS = 0
+      );
+      console.log(
+        `Successfully reset cumulative points for ${result.modifiedCount} users.`
+      );
+    } catch (error) {
+      console.error("Error resetting cumulative points:", error);
+    }
+  }
 }
 
 module.exports = new USER_SERVICE();
