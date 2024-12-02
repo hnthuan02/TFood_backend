@@ -17,6 +17,8 @@ class REVIEW_SERVICE {
     if (existingReview) {
       throw new Error("Bạn đã đánh giá bàn này rồi");
     }
+
+    const status = ratingFood <= 3 && ratingService <= 3 ? false : true;
     // Tạo và lưu đánh giá mới
     const newReview = new REVIEW_MODEL({
       USER_ID: userId,
@@ -24,7 +26,7 @@ class REVIEW_SERVICE {
       RATING_FOOD: ratingFood,
       RATING_SERVICE: ratingService,
       COMMENT: comment,
-      STATUS: true, // Đánh giá được kích hoạt
+      STATUS: status, // Đánh giá được kích hoạt
     });
     await newReview.save();
     return newReview;

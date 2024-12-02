@@ -31,5 +31,10 @@ router.put(
   verifyToken,
   CART_CONTROLLER.updateBookingTime
 );
+router.post(
+  "/checkAndRemoveInvalidTables",
+  verifyToken,
+  CART_CONTROLLER.checkAndRemoveInvalidTables
+);
 
 module.exports = router;

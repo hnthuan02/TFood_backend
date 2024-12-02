@@ -23,7 +23,6 @@ class CART_SERVICE {
       cart = await this.createCart(userId);
     }
 
-    // Kiểm tra xem bàn với `TABLE_ID` đã tồn tại trong giỏ hàng hay chưa
     const isTableInCart = cart.LIST_TABLES.some(
       (table) => table.TABLE_ID.toString() === tableId
     );
@@ -34,7 +33,6 @@ class CART_SERVICE {
       );
     }
 
-    // Nếu bàn chưa tồn tại, thực hiện thêm mới
     const table = await TABLE_MODEL.findById(tableId);
     if (!table) {
       throw new Error("Table not found");
@@ -64,7 +62,6 @@ class CART_SERVICE {
       });
     }
 
-    // Thêm bàn mới vào LIST_TABLES
     cart.LIST_TABLES.push({
       TABLE_ID: tableId,
       BOOKING_TIME: bookingTime,
@@ -72,13 +69,10 @@ class CART_SERVICE {
       LIST_FOOD: listFoodItems,
     });
 
-    // Lấy giá bàn
     const tablePrice = table.PRICE;
 
-    // Tính tổng giá tiền bao gồm giá bàn, món ăn và dịch vụ
     const totalPrice = await this.totalPriceCart(cart.LIST_TABLES);
 
-    // Cập nhật tổng giá
     cart.TOTAL_PRICES = totalPrice + tablePrice;
     await cart.save();
 
@@ -92,7 +86,6 @@ class CART_SERVICE {
       throw new Error("Cart not found");
     }
 
-    // Tìm bàn trong giỏ hàng
     let tableInCart = cart.LIST_TABLES.find(
       (table) => table.TABLE_ID.toString() === tableId
     );
@@ -101,24 +94,19 @@ class CART_SERVICE {
       throw new Error("Table not found in cart");
     }
 
-    // Xóa món ăn khỏi LIST_FOOD
     tableInCart.LIST_FOOD = tableInCart.LIST_FOOD.filter(
       (food) => food.FOOD_ID.toString() !== foodId
     );
 
-    // Kiểm tra nếu LIST_FOOD trống sau khi xóa
     if (tableInCart.LIST_FOOD.length === 0) {
-      // Xóa bàn khỏi LIST_TABLES
       cart.LIST_TABLES = cart.LIST_TABLES.filter(
         (table) => table.TABLE_ID.toString() !== tableId
       );
     }
 
-    // **Kiểm tra nếu LIST_TABLES trống sau khi xóa bàn**
     if (cart.LIST_TABLES.length === 0) {
-      // Xóa cart khỏi cơ sở dữ liệu
       await CART_MODEL.deleteOne({ USER_ID: userId });
-      return null; // Trả về null hoặc thông báo phù hợp
+      return null;
     } else {
       await cart.save();
       return cart;
@@ -126,14 +114,12 @@ class CART_SERVICE {
   }
 
   async removeTableFromCart(userId, tableId, bookingTime) {
-    // Tìm giỏ hàng của người dùng
     let cart = await CART_MODEL.findOne({ USER_ID: userId });
 
     if (!cart) {
       throw new Error("Cart not found");
     }
 
-    // Lọc bỏ bàn có TABLE_ID bằng với tableId
     cart.LIST_TABLES = cart.LIST_TABLES.filter(
       (table) =>
         !(
@@ -142,13 +128,10 @@ class CART_SERVICE {
         )
     );
 
-    // **Kiểm tra nếu LIST_TABLES trống sau khi xóa bàn**
     if (cart.LIST_TABLES.length === 0) {
-      // Xóa cart khỏi cơ sở dữ liệu
       await CART_MODEL.deleteOne({ USER_ID: userId });
-      return null; // Trả về null hoặc thông báo phù hợp
+      return null;
     } else {
-      // Lưu lại giỏ hàng sau khi cập nhật
       await cart.save();
       return cart;
     }
@@ -161,7 +144,6 @@ class CART_SERVICE {
       throw new Error("Cart not found");
     }
 
-    // Tìm bàn trong giỏ hàng
     let tableInCart = cart.LIST_TABLES.find(
       (table) => table.TABLE_ID.toString() === tableId
     );
@@ -170,7 +152,6 @@ class CART_SERVICE {
       throw new Error("Table not found in cart");
     }
 
-    // Tìm món ăn trong LIST_FOOD
     let foodInTable = tableInCart.LIST_FOOD.find(
       (food) => food.FOOD_ID.toString() === foodId
     );
@@ -179,30 +160,24 @@ class CART_SERVICE {
       throw new Error("Food not found in table");
     }
 
-    // Cập nhật số lượng món ăn
     const food = await FOOD_MODEL.findById(foodId);
     foodInTable.QUANTITY = newQuantity;
     foodInTable.TOTAL_PRICE_FOOD = foodInTable.QUANTITY * food.PRICE;
 
-    // Nếu số lượng mới là 0, xóa món ăn khỏi LIST_FOOD
     if (newQuantity === 0) {
       tableInCart.LIST_FOOD = tableInCart.LIST_FOOD.filter(
         (food) => food.FOOD_ID.toString() !== foodId
       );
 
-      // Kiểm tra nếu LIST_FOOD trống sau khi xóa
       if (tableInCart.LIST_FOOD.length === 0) {
-        // Xóa bàn khỏi LIST_TABLES
         cart.LIST_TABLES = cart.LIST_TABLES.filter(
           (table) => table.TABLE_ID.toString() !== tableId
         );
       }
 
-      // Kiểm tra nếu LIST_TABLES trống sau khi xóa bàn
       if (cart.LIST_TABLES.length === 0) {
-        // Xóa cart khỏi cơ sở dữ liệu
         await CART_MODEL.deleteOne({ USER_ID: userId });
-        return null; // Trả về null hoặc thông báo phù hợp
+        return null;
       }
     }
 
@@ -217,7 +192,6 @@ class CART_SERVICE {
       throw new Error("Cart not found");
     }
 
-    // Tìm bàn hiện tại
     let tableInCart = cart.LIST_TABLES.find(
       (table) => table.TABLE_ID.toString() === oldTableId
     );
@@ -226,49 +200,20 @@ class CART_SERVICE {
       throw new Error("Old table not found in cart");
     }
 
-    // Thay thế tableId cũ bằng tableId mới
     tableInCart.TABLE_ID = newTableId;
 
     await cart.save();
     return cart;
   }
-
-  // calculateTotalPrices(listTables) {
-  //   const tables = listTables || [];
-  //   return tables.reduce((total, table) => {
-  //     const totalPriceFood = (table.LIST_FOOD || []).reduce(
-  //       (sum, food) => sum + food.LIST_FOOD,
-  //       0
-  //     );
-
-  //     // Tính tổng giá dịch vụ trong bàn
-  //     const totalPriceServices = (table.SERVICES || []).reduce(
-  //       (sum, service) => sum + (service.servicePrice || 0),
-  //       0
-  //     );
-
-  //     // Lấy giá của bàn từ tableInfo nếu có
-  //     const tablePrice = table.tableInfo ? table.tableInfo.PRICE : 0;
-
-  //     // Tính tổng giá của bàn hiện tại
-  //     const totalTablePrice = totalPriceFood + totalPriceServices + tablePrice;
-
-  //     // Cộng vào tổng giá trị của toàn bộ giỏ hàng
-  //     return total + totalTablePrice;
-  //   }, 0);
-  // }
   async totalPriceCart(listTables) {
-    // Tính tổng giá trị của giỏ hàng dựa trên các bàn
     return listTables.reduce((total, table) => {
-      const foodTotalPrice = table.TOTAL_PRICE_FOOD || 0; // Tổng giá món ăn
-      const serviceTotalPrice = table.TOTAL_SERVICE_PRICE || 0; // Tổng giá dịch vụ
+      const foodTotalPrice = table.TOTAL_PRICE_FOOD || 0;
+      const serviceTotalPrice = table.TOTAL_SERVICE_PRICE || 0;
 
-      // Tổng giá trị của bàn này
       const tableTotal = foodTotalPrice + serviceTotalPrice;
 
-      // Cộng tổng giá của bàn này vào tổng giá của toàn bộ giỏ hàng
       return total + tableTotal;
-    }, 0); // Giá khởi điểm là 0
+    }, 0);
   }
   async getCartByUserId(userId) {
     const cartAggregation = await CART_MODEL.aggregate([
@@ -346,7 +291,7 @@ class CART_SERVICE {
       },
       {
         $lookup: {
-          from: "servicetables", // Tên collection chứa dịch vụ
+          from: "servicetables",
           localField: "LIST_TABLES.SERVICES.SERVICES_ID",
           foreignField: "_id",
           as: "serviceDetails",
@@ -432,7 +377,7 @@ class CART_SERVICE {
       },
       {
         $group: {
-          _id: "$_id", // Giữ nguyên thông tin bàn
+          _id: "$_id",
           USER_ID: { $first: "$USER_ID" },
           LIST_TABLES: { $push: "$LIST_TABLES" },
         },
@@ -449,181 +394,20 @@ class CART_SERVICE {
     let cartData = cartAggregation[0];
 
     if (!cartData) {
-      // Nếu không tìm thấy giỏ hàng, trả về giỏ hàng trống
       cartData = {
         USER_ID: userId,
         LIST_TABLES: [],
         TOTAL_PRICES: 0,
       };
     } else {
-      // Không cần gộp lại bàn, vì đã lấy tất cả các bàn
       cartData.LIST_TABLES = cartData.LIST_TABLES || [];
 
-      // Tính tổng giá tiền bao gồm tất cả các bàn
       cartData.TOTAL_PRICES = await this.totalPriceCart(cartData.LIST_TABLES);
     }
 
     return cartData;
   }
 
-  // async getCartByUserId(userId) {
-  //   const cartAggregation = await CART_MODEL.aggregate([
-  //     {
-  //       $match: { USER_ID: new mongoose.Types.ObjectId(userId) },
-  //     },
-  //     {
-  //       $unwind: { path: "$LIST_TABLES", preserveNullAndEmptyArrays: true },
-  //     },
-  //     {
-  //       $lookup: {
-  //         from: "tables",
-  //         localField: "LIST_TABLES.TABLE_ID",
-  //         foreignField: "_id",
-  //         as: "tableDetails",
-  //       },
-  //     },
-  //     {
-  //       $unwind: { path: "$tableDetails", preserveNullAndEmptyArrays: true },
-  //     },
-  //     // Loại bỏ AVAILABILITY từ tableDetails
-  //     {
-  //       $addFields: {
-  //         tableDetails: {
-  //           _id: "$tableDetails._id",
-  //           TYPE: "$tableDetails.TYPE",
-  //           PRICE: "$tableDetails.PRICE",
-  //           DESCRIPTION: "$tableDetails.DESCRIPTION",
-  //           IMAGES: "$tableDetails.IMAGES",
-  //           CAPACITY: "$tableDetails.CAPACITY",
-  //           IS_DELETED: "$tableDetails.IS_DELETED",
-  //           SERVICES: "$tableDetails.SERVICES",
-  //           TABLE_NUMBER: "$tableDetails.TABLE_NUMBER",
-  //           DEPOSIT: "$tableDetails.DEPOSIT",
-  //           // Không bao gồm AVAILABILITY
-  //         },
-  //       },
-  //     },
-  //     {
-  //       $lookup: {
-  //         from: "foods",
-  //         localField: "LIST_TABLES.LIST_FOOD.FOOD_ID",
-  //         foreignField: "_id",
-  //         as: "foodDetails",
-  //       },
-  //     },
-  //     {
-  //       $addFields: {
-  //         "LIST_TABLES.LIST_FOOD": {
-  //           $map: {
-  //             input: "$LIST_TABLES.LIST_FOOD",
-  //             as: "foodItem",
-  //             in: {
-  //               $mergeObjects: [
-  //                 "$$foodItem",
-  //                 {
-  //                   foodPrice: {
-  //                     $arrayElemAt: [
-  //                       {
-  //                         $filter: {
-  //                           input: "$foodDetails",
-  //                           as: "foodDetail",
-  //                           cond: {
-  //                             $eq: ["$$foodDetail._id", "$$foodItem.FOOD_ID"],
-  //                           },
-  //                         },
-  //                       },
-  //                       0,
-  //                     ],
-  //                   },
-  //                 },
-  //               ],
-  //             },
-  //           },
-  //         },
-  //       },
-  //     },
-  //     {
-  //       $addFields: {
-  //         "LIST_TABLES.TOTAL_PRICE_FOOD": {
-  //           $sum: {
-  //             $map: {
-  //               input: "$LIST_TABLES.LIST_FOOD",
-  //               as: "food",
-  //               in: {
-  //                 $multiply: [
-  //                   "$$food.QUANTITY",
-  //                   { $ifNull: ["$$food.foodPrice.PRICE", 0] },
-  //                 ],
-  //               },
-  //             },
-  //           },
-  //         },
-  //         "LIST_TABLES.TABLE_PRICE": "$tableDetails.PRICE",
-  //         "LIST_TABLES.TOTAL_SERVICE_PRICE": {
-  //           $sum: {
-  //             $map: {
-  //               input: "$LIST_TABLES.SERVICES",
-  //               as: "service",
-  //               in: { $ifNull: ["$$service.servicePrice", 0] },
-  //             },
-  //           },
-  //         },
-  //         "LIST_TABLES.tableInfo": {
-  //           $mergeObjects: [
-  //             {
-  //               _id: "$tableDetails._id",
-  //               TYPE: "$tableDetails.TYPE",
-  //               PRICE: "$tableDetails.PRICE",
-  //               DESCRIPTION: "$tableDetails.DESCRIPTION",
-  //               IMAGES: "$tableDetails.IMAGES",
-  //               CAPACITY: "$tableDetails.CAPACITY",
-  //               IS_DELETED: "$tableDetails.IS_DELETED",
-  //               SERVICES: "$tableDetails.SERVICES",
-  //               TABLE_NUMBER: "$tableDetails.TABLE_NUMBER",
-  //               DEPOSIT: "$tableDetails.DEPOSIT",
-  //             },
-  //           ],
-  //         },
-  //       },
-  //     },
-  //     {
-  //       $group: {
-  //         _id: "$_id",
-  //         USER_ID: { $first: "$USER_ID" },
-  //         LIST_TABLES: { $push: "$LIST_TABLES" },
-  //       },
-  //     },
-  //     {
-  //       $project: {
-  //         _id: 0,
-  //         USER_ID: 1,
-  //         LIST_TABLES: 1,
-  //       },
-  //     },
-  //   ]);
-
-  //   let cartData = cartAggregation[0];
-
-  //   if (!cartData) {
-  //     // Nếu không tìm thấy giỏ hàng, trả về giỏ hàng trống
-  //     cartData = {
-  //       USER_ID: userId,
-  //       LIST_TABLES: [],
-  //       TOTAL_PRICES: 0,
-  //     };
-  //   } else {
-  //     // Gộp các bàn lại nếu có cùng TABLE_ID
-  //     cartData.LIST_TABLES = this.mergeTables(cartData.LIST_TABLES || []);
-
-  //     // Tính tổng giá tiền bao gồm tất cả các bàn
-  //     // cartData.TOTAL_PRICES = this.calculateTotalPrices(cartData.LIST_TABLES);
-  //     cartData.TOTAL_PRICES = this.totalPriceCart(cartData.LIST_TABLES);
-  //   }
-
-  //   return cartData;
-  // }
-
-  // Hàm gộp các bàn cùng TABLE_ID
   mergeTables(listTables) {
     const tables = listTables || [];
     const mergedTables = [];
@@ -855,6 +639,78 @@ class CART_SERVICE {
       return cart;
     } catch (error) {
       throw new Error(error.message);
+    }
+  }
+
+  async checkAndRemoveInvalidTables(userId) {
+    try {
+      // Lấy giỏ hàng của người dùng
+      const cart = await CART_MODEL.findOne({ USER_ID: userId });
+
+      if (!cart) {
+        throw new Error("Cart not found.");
+      }
+
+      const listTables = cart.LIST_TABLES;
+      const validTables = [];
+
+      for (const table of listTables) {
+        const tableInDb = await TABLE_MODEL.findById(table.TABLE_ID);
+        if (!tableInDb) {
+          continue; // Nếu bàn không tồn tại trong DB, bỏ qua
+        }
+
+        // Kiểm tra tính hợp lệ của thời gian đặt bàn
+        const bookingTime = table.BOOKING_TIME;
+        const isValid = await this.checkBookingTimeValidity(
+          bookingTime,
+          tableInDb.BOOKING_TIMES
+        );
+
+        if (isValid) {
+          validTables.push(table); // Nếu thời gian hợp lệ, thêm vào danh sách bàn hợp lệ
+        }
+      }
+
+      // Cập nhật lại giỏ hàng với các bàn hợp lệ
+      cart.LIST_TABLES = validTables;
+      await cart.save();
+    } catch (error) {
+      throw new Error(
+        `Error checking and removing invalid tables: ${error.message}`
+      );
+    }
+  }
+
+  // Kiểm tra tính hợp lệ của thời gian đặt bàn
+  async checkBookingTimeValidity(bookingTime, bookingTimes) {
+    try {
+      const bookingTimeMoment = moment(bookingTime, "YYYY-MM-DD HH:mm"); // Chuyển đổi thời gian đặt thành moment object
+
+      for (const existingBooking of bookingTimes) {
+        const existingBookingTimeMoment = moment(
+          existingBooking.START_TIME,
+          "YYYY-MM-DD HH:mm"
+        );
+
+        // So sánh xem thời gian có trùng không
+        if (bookingTimeMoment.isSame(existingBookingTimeMoment)) {
+          return false; // Trùng giờ, không hợp lệ
+        }
+
+        // Kiểm tra chênh lệch thời gian so với thời gian đã đặt (chênh lệch quá 3 tiếng)
+        const timeDifference = bookingTimeMoment.diff(
+          existingBookingTimeMoment,
+          "hours"
+        );
+        if (Math.abs(timeDifference) <= 3) {
+          return false; // Chênh lệch không hợp lệ, cần ít nhất 3 giờ
+        }
+      }
+
+      return true; // Nếu không có sự trùng lặp hoặc chênh lệch không hợp lệ
+    } catch (error) {
+      throw new Error(`Error checking booking time validity: ${error.message}`);
     }
   }
 }

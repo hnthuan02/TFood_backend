@@ -1,4 +1,6 @@
 const CART_SERVICE = require("../../Services/Cart/Cart.Service");
+const CART_MODEL = require("../../Models/Cart/Cart.Model");
+const TABLE_MODEL = require("../../Models/Table/Table.Model");
 
 class CART_CONTROLLER {
   async createCart(req, res) {
@@ -164,7 +166,7 @@ class CART_CONTROLLER {
   async getCartByUserId(req, res) {
     try {
       const userId = req.user_id; // Giả sử user_id được lấy từ token đã xác thực
-
+      await CART_SERVICE.checkAndRemoveInvalidTables(userId);
       const cart = await CART_SERVICE.getCartByUserId(userId);
 
       return res.status(200).json({
@@ -318,6 +320,70 @@ class CART_CONTROLLER {
         .json({ message: "Booking time updated successfully", updatedCart });
     } catch (error) {
       return res.status(500).json({ message: error.message });
+    }
+  }
+
+  async checkAndRemoveInvalidTables(userId) {
+    try {
+      const cart = await CART_MODEL.findOne({ USER_ID: userId });
+
+      if (!cart) {
+        throw new Error("Cart not found.");
+      }
+
+      // Lấy tất cả các bảng trong Cart
+      const listTables = cart.LIST_TABLES;
+      const updatedTables = [];
+
+      for (const table of listTables) {
+        const tableId = table.TABLE_ID;
+        const bookingTime = table.BOOKING_TIME;
+
+        // Lấy tất cả các BOOKING_TIME của bàn từ model Table
+        const tableInfo = await TABLE_MODEL.findById(tableId);
+
+        if (!tableInfo) {
+          throw new Error(`Table with ID ${tableId} not found.`);
+        }
+
+        let isValid = true;
+
+        for (const booking of tableInfo.BOOKING_TIMES) {
+          const tableBookingTime = moment(booking.START_TIME);
+          const userBookingTime = moment(bookingTime);
+
+          // Kiểm tra trùng ngày và giờ hoặc chênh lệch trong khoảng 3 giờ
+          const timeDifference = userBookingTime.diff(
+            tableBookingTime,
+            "hours"
+          );
+
+          if (
+            userBookingTime.isSame(tableBookingTime, "day") &&
+            Math.abs(timeDifference) <= 3
+          ) {
+            isValid = false;
+            break;
+          }
+        }
+
+        // Nếu không hợp lệ, loại bỏ bàn khỏi LIST_TABLES
+        if (!isValid) {
+          continue; // Không thêm vào danh sách bảng hợp lệ
+        }
+
+        updatedTables.push(table); // Bàn hợp lệ, giữ lại
+      }
+
+      // Cập nhật lại LIST_TABLES của giỏ hàng
+      cart.LIST_TABLES = updatedTables;
+      await cart.save();
+    } catch (error) {
+      console.error(
+        "Error checking and removing invalid tables:",
+        error.message
+      );
+      throw new Error("Error checking and removing invalid tables.");
     }
   }
 }

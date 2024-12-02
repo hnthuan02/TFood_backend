@@ -1,13 +1,13 @@
 const cron = require("node-cron");
 const tableService = require("../Services/Table/Table.Service");
 const userService = require("../Services/User/User.Service");
-
+const bookingService = require("../Services/Booking/Booking.Service");
 // Chạy cron job mỗi giờ
 cron.schedule("0 * * * *", async () => {
   console.log("Cron job đang chạy");
   try {
     await tableService.updateBookingTimeStatusIfOverdue();
-
+    await bookingService.updateAllBookingsStatus();
     //console.log("Đã cập nhật trạng thái booking time quá hạn.");
   } catch (error) {
     console.error("Lỗi khi chạy cron job:", error.message);

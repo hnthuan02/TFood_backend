@@ -12,7 +12,6 @@ const mongoose = require("mongoose");
 
 class BookingService {
   async getBookingById(bookingId) {
-    console.log(bookingId);
     try {
       // Tìm booking dựa trên bookingId
       const booking = await Booking.findById(bookingId);
@@ -145,7 +144,6 @@ class BookingService {
   }
 
   async updateBookingStatus({ bookingId, status }) {
-    console.log("cha" + bookingId);
     try {
       // Tìm booking bằng ID
       const booking = await Booking.findById(bookingId);

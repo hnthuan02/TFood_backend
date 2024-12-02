@@ -148,7 +148,7 @@ class VoucherController {
           success: true,
           eligible: false,
           discount_percent: voucher.DISCOUNT_PERCENT,
-          message: "Người dùng không đủ điểm để sử dụng voucher.",
+          message: "Bạn không đủ điểm để sử dụng voucher.",
         });
       }
     } catch (error) {

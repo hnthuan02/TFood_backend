@@ -26,6 +26,7 @@ class VoucherService {
 
   async getAllVouchers() {
     const vouchers = await Voucher.find({});
+    await this.checkAndUpdateVoucherStatus();
     return vouchers;
   }
 
@@ -39,6 +40,28 @@ class VoucherService {
       throw new Error("Không tìm thấy voucher.");
     }
     return voucher;
+  }
+
+  async checkAndUpdateVoucherStatus() {
+    try {
+      // Lấy tất cả các voucher
+      const vouchers = await Voucher.find({});
+
+      // Duyệt qua từng voucher để kiểm tra ngày hết hạn và cập nhật trạng thái
+      for (const voucher of vouchers) {
+        if (new Date(voucher.EXPIRATION_DATE) < new Date()) {
+          // Nếu ngày hết hạn nhỏ hơn ngày hiện tại, cập nhật STATUS thành false (Expired)
+          await Voucher.findByIdAndUpdate(voucher._id, { STATUS: false });
+        }
+      }
+
+      return {
+        success: true,
+        message: "Voucher statuses updated successfully.",
+      };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
   }
 }
 
